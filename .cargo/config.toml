@@ -1,0 +1,3 @@
+[build]
+target = "cramp32imc-unknown-none-elf"
+# target = "riscv32imc-unknown-none-elf"
