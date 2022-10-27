@@ -8,12 +8,43 @@ pub fn tx(value: u8) {
     writev(REG_UART_DATA, value as u32);
 }
 
+pub fn rx() -> Option<u8> {
+    if (readv(REG_UART_STATUS) & 8) != 0 {
+        Some(readv(REG_UART_DATA) as u8)
+    } else {
+        None
+    }
+}
+
 pub fn puts(s: &[u8]) {
     for c in s.iter() {
         tx(*c);
     }
 }
 
+pub fn getc() -> u8 {
+    loop {
+        if let Some(c) = rx() {
+            return c;
+        }
+    }
+}
+
+pub fn gets(s: &mut [u8]) {
+    let mut i = 0;
+    while i < s.len() - 1 {
+        let c = getc();
+        s[i] = c;
+        i += 1;
+        tx(c);
+        if c == b'\n' {
+            break;
+        }
+    }
+    s[i] = 0;
+}
+
+#[allow(dead_code)]
 pub fn print(mut x: u32) {
     tx(b'0');
     tx(b'x');

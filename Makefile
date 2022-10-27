@@ -32,4 +32,4 @@ target/%.hex: target/%.bin
 	od -An -tx4 -v $< > $@
 
 target/%.dump: target/%.elf
-	$(OBJDUMP) -dSC $< > $@
+	$(OBJDUMP) -dSC --mattr=+zbb $< > $@
