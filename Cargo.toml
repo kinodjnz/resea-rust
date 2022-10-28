@@ -1,5 +1,5 @@
 [package]
-name = "kernel"
+name = "cresea"
 version = "0.1.0"
 edition = "2021"
 
@@ -13,5 +13,7 @@ codegen-units = 1
 
 [lib]
 crate-type = ["staticlib"]
+name = "kernel"
+path = "kernel/lib.rs"
 
 [dependencies]

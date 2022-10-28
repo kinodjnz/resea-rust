@@ -1,6 +1,6 @@
 NAME = kernel
 
-RUST_SRCS = $(wildcard src/*.rs)
+KERNEL_SRCS = $(wildcard kernel/*.rs)
 
 ARCH = cramp32
 # ARCH = riscv32
@@ -16,7 +16,7 @@ LD = $(LLVM_PATH)/ld.lld
 
 all: target/$(NAME).bin target/$(NAME).dump target/kernel.elf
 
-target/CACHEDIR.TAG target/$(TARGET)/release/lib$(NAME).a: $(RUST_SRCS)
+target/CACHEDIR.TAG target/$(TARGET)/release/lib$(NAME).a: $(KERNEL_SRCS)
 	cargo build --release
 
 target/boot.o: libsrc/boot.s target/CACHEDIR.TAG

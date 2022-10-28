@@ -3,11 +3,13 @@ use super::mmio::{readv, writev};
 const REG_UART_STATUS: *mut u32 = 0x3000_1000 as *mut u32;
 const REG_UART_DATA: *mut u32 = 0x3000_1004 as *mut u32;
 
+#[allow(dead_code)]
 pub fn tx(value: u8) {
     while ((readv(REG_UART_STATUS)) & 4) != 0 {}
     writev(REG_UART_DATA, value as u32);
 }
 
+#[allow(dead_code)]
 pub fn rx() -> Option<u8> {
     if (readv(REG_UART_STATUS) & 8) != 0 {
         Some(readv(REG_UART_DATA) as u8)
@@ -16,12 +18,14 @@ pub fn rx() -> Option<u8> {
     }
 }
 
+#[allow(dead_code)]
 pub fn puts(s: &[u8]) {
     for c in s.iter() {
         tx(*c);
     }
 }
 
+#[allow(dead_code)]
 pub fn getc() -> u8 {
     loop {
         if let Some(c) = rx() {
@@ -30,6 +34,7 @@ pub fn getc() -> u8 {
     }
 }
 
+#[allow(dead_code)]
 pub fn gets(s: &mut [u8]) {
     let mut i = 0;
     while i < s.len() - 1 {
