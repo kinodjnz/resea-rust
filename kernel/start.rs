@@ -18,7 +18,7 @@ pub fn init_bss() {
 }
 
 #[no_mangle]
-pub extern "C" fn __start_rust() -> ! {
+pub extern "C" fn cramp32_init() -> ! {
     init_bss();
     super::cycle::init();
     super::main();
@@ -28,6 +28,7 @@ pub extern "C" fn __start_rust() -> ! {
 use core::panic::PanicInfo;
 #[panic_handler]
 #[no_mangle]
+#[link_section = ".panic_info"]
 fn panic(_info: &PanicInfo) -> ! {
     loop {}
 }

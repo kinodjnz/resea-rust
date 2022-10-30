@@ -6,7 +6,10 @@ mod gpio;
 mod mmio;
 //mod sdc;
 mod start;
-mod uart;
+mod arch;
+mod console;
+
+use console::Console;
 
 fn main() {
     // let s = sdc::init_card();
@@ -17,7 +20,7 @@ fn main() {
     // uart::puts(b" ld\r\n");
     let mut led_out: u32 = 1;
     loop {
-        uart::puts(b"Hello, RISC-V\r\n");
+        Console::puts(b"Hello, RISC-V\r\n");
         gpio::out(led_out);
         led_out = (led_out << 1) | ((led_out >> 7) & 1);
         cycle::wait(cycle::clock_hz() >> 1);

@@ -16,4 +16,7 @@ crate-type = ["staticlib"]
 name = "kernel"
 path = "kernel/lib.rs"
 
+[features]
+cramp32 = []
+
 [dependencies]
