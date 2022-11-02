@@ -5,11 +5,15 @@ ARCH = cramp32
 TARGET = $(ARCH)imc-unknown-none-elf
 # TARGET = riscv32imc-unknown-none-elf
 
-KERNEL_SRCS = $(wildcard kernel/*.rs)
-KERNEL_ASM_SRCS = $(wildcard kernel/arch/$(ARCH)/*.S)
-KERNEL_LD = kernel/arch/$(ARCH)/kernel.ld
-
 LLVM_PATH = ../../rust-lang/rust/build/aarch64-apple-darwin/llvm/bin
+
+ARCH_DIR = kernel/arch/$(ARCH)
+
+KERNEL_SRCS = $(wildcard kernel/*.rs $(ARCH_DIR)/*.rs)
+KERNEL_ASM_SRCS = $(wildcard $(ARCH_DIR)/*.S)
+KERNEL_LD = $(ARCH_DIR)/kernel.ld
+
+KERNEL_ASM_OBJS = $(patsubst %.S,target/%.o,$(notdir $(KERNEL_ASM_SRCS)))
 
 AS = $(LLVM_PATH)/llvm-mc
 OBJDUMP = $(LLVM_PATH)/llvm-objdump
@@ -21,10 +25,10 @@ all: target/$(NAME).bin target/$(NAME).dump target/kernel.elf
 target/CACHEDIR.TAG target/$(TARGET)/release/lib$(NAME).a: $(KERNEL_SRCS)
 	cargo build --features $(ARCH) --release
 
-target/boot.o: $(KERNEL_ASM_SRCS) target/CACHEDIR.TAG
+target/%.o: $(ARCH_DIR)/%.S target/CACHEDIR.TAG
 	$(AS) --arch=$(ARCH) --filetype=obj -o $@ $<
 
-target/%.elf: $(KERNEL_LD) target/boot.o target/$(TARGET)/release/lib%.a
+target/%.elf: $(KERNEL_LD) $(KERNEL_ASM_OBJS) target/$(TARGET)/release/lib%.a
 	$(LD) -T $+ -o $@ -nostdlib --relax
 
 target/%.bin: target/%.elf
