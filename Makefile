@@ -20,13 +20,18 @@ OBJDUMP = $(LLVM_PATH)/llvm-objdump
 OBJCOPY = $(LLVM_PATH)/llvm-objcopy
 LD = $(LLVM_PATH)/ld.lld
 
+ASOPT = --arch=$(ARCH) --mattr=+c,+m,+zbb,+relax
+
 all: target/$(NAME).bin target/$(NAME).dump target/kernel.elf
+
+fmt:
+	cargo +nightly fmt
 
 target/CACHEDIR.TAG target/$(TARGET)/release/lib$(NAME).a: $(KERNEL_SRCS)
 	cargo build --features $(ARCH) --release
 
 target/%.o: $(ARCH_DIR)/%.S target/CACHEDIR.TAG
-	$(AS) --arch=$(ARCH) --filetype=obj -o $@ $<
+	$(AS) $(ASOPT) --filetype=obj -o $@ $<
 
 target/%.elf: $(KERNEL_LD) $(KERNEL_ASM_OBJS) target/$(TARGET)/release/lib%.a
 	$(LD) -T $+ -o $@ -nostdlib --relax

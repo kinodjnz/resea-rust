@@ -1,5 +1,7 @@
 #![no_std]
-#![feature(const_format_args)]
+
+#[macro_use]
+mod macros;
 
 mod cycle;
 mod gpio;
@@ -10,8 +12,9 @@ mod arch;
 mod console;
 mod fmt;
 mod start;
+mod syscall;
 
-use console::*;
+use macros::*;
 
 fn putx(x: u32) {
     printk!(b"x is {}", x);

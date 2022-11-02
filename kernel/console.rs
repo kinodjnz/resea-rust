@@ -1,5 +1,5 @@
 use crate::arch::*;
-pub use crate::fmt::*;
+use crate::fmt::Write;
 
 pub struct Console;
 
@@ -27,22 +27,5 @@ pub struct ConsoleWriter;
 impl Write for ConsoleWriter {
     fn write_char(&mut self, ch: u8) {
         Console::print_char(ch);
-    }
-}
-
-#[macro_export]
-macro_rules! make_args {
-    ($arg1:expr $(,$args:expr)*) => {
-        HCons { head: $arg1, tail: make_args!($($args),*) }
-    };
-    () => {
-        HNil
-    };
-}
-
-#[macro_export]
-macro_rules! printk {
-    ($fmt:expr, $($args:expr),*) => {
-        make_args!($($args),*).format(&mut ConsoleWriter, $fmt)
     }
 }
