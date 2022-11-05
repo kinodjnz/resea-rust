@@ -74,3 +74,21 @@ impl Display for u32 {
         }
     }
 }
+
+impl Display for usize {
+    fn fmt(&self, writer: &mut dyn Write) {
+        let mut buf: [MaybeUninit<u8>; 8] = unsafe { MaybeUninit::uninit().assume_init() };
+        let mut x = *self;
+        writer.write_char(b'0');
+        writer.write_char(b'x');
+        for i in 0..8 {
+            let d = (x & 15) as u8;
+            x = x >> 4;
+            let ch = if d >= 10 { b'a' + d - 10 } else { b'0' + d };
+            unsafe { buf.get_unchecked_mut(7 - i).write(ch) };
+        }
+        for i in 0..8 {
+            writer.write_char(unsafe { buf.get_unchecked(i).assume_init_read() });
+        }
+    }
+}

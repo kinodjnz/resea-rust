@@ -1,7 +1,8 @@
-use crate::start::kmain;
-use core::arch::asm;
-use core::mem::zeroed;
-use core::ptr::write_volatile;
+use super::irq;
+use super::macros::*;
+use super::timer;
+use crate::boot::kmain;
+use crate::mmio;
 
 fn init_bss() {
     extern "C" {
@@ -13,39 +14,34 @@ fn init_bss() {
         let q: *mut u32 = &mut __bss_end;
 
         while p < q {
-            write_volatile(p, zeroed());
-            p = p.offset(1);
+            mmio::writev(p, 0);
+            p = p.add(1);
         }
     }
 }
 
 fn enable_interrupt() {
-    unsafe {
-        asm!("csrsi mstatus, 8");
-    }
+    cramp32_csrsi!("mstatus", 8);
 }
 
-fn enable_machine_external_interrupt() {
-    let mut mask: u32;
-    unsafe {
-        asm!("li   {0}, 0x800", out(reg) mask);
-        asm!("csrs mie, {0}", in(reg) mask);
-    }
+fn enable_machine_external_and_timer_interrupt() {
+    cramp32_csrsi!("mie", 0x880);
 }
 
 fn init_csr() {
-    let mut intr_handler: u32;
-    unsafe {
-        asm!("la   {0}, intr_handler", out(reg) intr_handler);
-        asm!("csrw mtvec, {0}", in(reg) intr_handler);
+    extern "C" {
+        static intr_handler: u32;
     }
+    cramp32_csrw!("mtvec", intr_handler);
+    irq::init();
     enable_interrupt();
-    enable_machine_external_interrupt();
+    enable_machine_external_and_timer_interrupt();
 }
 
 #[no_mangle]
 pub extern "C" fn cramp32_init() -> ! {
     init_bss();
     init_csr();
+    timer::init();
     kmain();
 }

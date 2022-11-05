@@ -20,9 +20,9 @@ intr_handler:
         sw      t6, 60(sp)
 
         csrr    a0, mcause
-        bltz    a0, 1f          // is intrrupt bit set
+        bltz    a0, 1f          // if intrrupt bit set
         addi    a0, a0, -11
-        bnez    a0, 3f          // is not environment call from m-mode
+        bnez    a0, 3f          // if not environment call from m-mode
 
         lw      a0, 4(sp)
         call    handle_syscall

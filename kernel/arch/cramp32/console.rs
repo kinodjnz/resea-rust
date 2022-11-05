@@ -1,7 +1,7 @@
 use super::uart;
 use crate::arch::KArchConsole;
 
-pub struct Console {}
+pub struct Console;
 
 impl KArchConsole for Console {
     fn print_char(ch: u8) {

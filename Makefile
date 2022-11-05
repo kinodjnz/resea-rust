@@ -43,4 +43,4 @@ target/%.hex: target/%.bin
 	od -An -tx4 -v $< > $@
 
 target/%.dump: target/%.elf
-	$(OBJDUMP) -dSC --mattr=+zbb $< > $@
+	$(OBJDUMP) -dSC --mattr=+zbb --print-imm-hex $< > $@

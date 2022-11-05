@@ -3,19 +3,22 @@
 #[macro_use]
 mod macros;
 
-mod cycle;
-mod gpio;
+//mod cycle;
+//mod gpio;
 //mod loader;
 mod mmio;
 //mod sdc;
 mod arch;
+mod boot;
+mod config;
 mod console;
+mod error;
 mod fmt;
-mod start;
 mod syscall;
+mod task;
 
+/*
 use macros::*;
-
 fn putx(x: u32) {
     printk!(b"x is {}", x);
     printk!(b"*2: {}, +4: {}", x * 2, x + 4);
@@ -23,6 +26,7 @@ fn putx(x: u32) {
 }
 
 fn main() {
+    task::task_create();
     // let s = sdc::init_card();
     // uart::print(s);
     // uart::puts(b" sd\r\n");
@@ -38,6 +42,7 @@ fn main() {
         cycle::wait(cycle::clock_hz() >> 1);
     }
 }
+*/
 
 use core::panic::PanicInfo;
 #[panic_handler]
