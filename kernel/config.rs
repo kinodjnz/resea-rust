@@ -1,1 +1,1 @@
-pub const NUM_TASKS: usize = 64;
+pub const NUM_TASKS: u32 = 64;

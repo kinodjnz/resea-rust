@@ -1,4 +1,6 @@
 #![no_std]
+#![feature(fn_traits)]
+#![feature(unboxed_closures)]
 
 #[macro_use]
 mod macros;
@@ -16,6 +18,7 @@ mod error;
 mod fmt;
 mod syscall;
 mod task;
+mod list;
 
 /*
 use macros::*;

@@ -9,3 +9,9 @@ pub fn writev<T>(addr: *mut T, value: T) {
         write_volatile(addr, value);
     }
 }
+
+#[allow(unused)]
+pub fn aligned<T, const N: usize>(addr: *const T) -> *const T {
+    let p = addr as *const u8 as usize;
+    (p & !(N - 1)) as *const T
+}
