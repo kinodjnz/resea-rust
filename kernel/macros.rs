@@ -37,3 +37,14 @@ macro_rules! zeroed_array {
         }
     };
 }
+
+#[macro_export]
+macro_rules! zeroed_const {
+    ($elem: ty) => {
+        unsafe {
+            mem::transmute::<[u32; mem::size_of::<$elem>() / 4], $elem>(
+                [0; mem::size_of::<$elem>() / 4],
+            )
+        }
+    };
+}

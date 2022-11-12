@@ -16,12 +16,12 @@ static mut EXCEPTION_STACKS: ExceptionStack = ExceptionStack {
 };
 
 #[repr(align(16))]
-pub struct Cramp32Task {
+pub struct Cramp32Task<'t> {
     pub stack: usize,
-    noarch_task: NoarchTask,
+    noarch_task: NoarchTask<'t>,
 }
 
-fn init_stack(noarch_task: &NoarchTask, pc: usize) -> usize {
+fn init_stack<'t>(noarch_task: &'t NoarchTask, pc: usize) -> usize {
     unsafe {
         let stack: *mut u32 = EXCEPTION_STACKS
             .stack
@@ -42,15 +42,15 @@ fn init_stack(noarch_task: &NoarchTask, pc: usize) -> usize {
     }
 }
 
-impl KArchTask for Cramp32Task {
-    fn arch_task_create(noarch_task: NoarchTask, pc: usize) -> Result<Cramp32Task, Error> {
+impl<'t> KArchTask<'t> for Cramp32Task<'t> {
+    fn arch_task_create(noarch_task: NoarchTask<'t>, pc: usize) -> Result<Cramp32Task<'t>, Error> {
         Ok(Cramp32Task {
             stack: init_stack(&noarch_task, pc),
             noarch_task,
         })
     }
 
-    fn arch_task_switch(prev: &mut Cramp32Task, next: &Cramp32Task) {
+    fn arch_task_switch(prev: &mut Cramp32Task<'t>, next: &mut Cramp32Task<'t>) {
         extern "C" {
             fn cramp32_task_switch(prev_sp: *mut usize, next_sp: usize);
         }
@@ -60,11 +60,11 @@ impl KArchTask for Cramp32Task {
     }
 }
 
-impl GetNoarchTask for Cramp32Task {
-    fn noarch(&self) -> &NoarchTask {
+impl<'t> GetNoarchTask<'t> for Cramp32Task<'t> {
+    fn noarch(&'t self) -> &'t NoarchTask<'t> {
         &self.noarch_task
     }
-    fn noarch_mut(&mut self) -> &mut NoarchTask {
+    fn noarch_mut(&mut self) -> &mut NoarchTask<'t> {
         &mut self.noarch_task
     }
 }

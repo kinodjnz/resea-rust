@@ -18,4 +18,4 @@ pub type ArchConsole = crate::arch::cramp32::console::Console;
 pub type ArchIrq = crate::arch::cramp32::irq::Irq;
 
 #[cfg(feature = "cramp32")]
-pub type Task = crate::arch::cramp32::task::Cramp32Task;
+pub type Task<'t> = crate::arch::cramp32::task::Cramp32Task<'t>;
