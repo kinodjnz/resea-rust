@@ -16,9 +16,9 @@ mod config;
 mod console;
 mod error;
 mod fmt;
+mod list;
 mod syscall;
 mod task;
-mod list;
 
 /*
 use macros::*;

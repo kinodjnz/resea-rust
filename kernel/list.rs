@@ -1,7 +1,7 @@
 use core::marker::PhantomData;
 
 pub trait ContainerAdapter<'t, T> {
-    fn as_mut(&mut self, t: &'t T) -> &'t mut T;
+    fn as_mut1(&mut self, t: &'t T) -> &'t mut T;
     fn as_mut2(&mut self, t1: &'t T, t2: &'t T) -> (&mut T, &mut T);
 }
 
@@ -49,7 +49,9 @@ pub struct LinkedList<'a, 't, C: ContainerAdapter<'t, T>, T, LinkTag> {
     phantom_tag: PhantomData<LinkTag>,
 }
 
-impl<'a, 't, C: ContainerAdapter<'t, T>, T: LinkAdapter<'t, T, LinkTag>, LinkTag: 'a> LinkedList<'a, 't, C, T, LinkTag> {
+impl<'a, 't, C: ContainerAdapter<'t, T>, T: LinkAdapter<'t, T, LinkTag>, LinkTag: 'a>
+    LinkedList<'a, 't, C, T, LinkTag>
+{
     pub fn new(container: &'a mut C, link_start: &'a mut ListLink<'t, T>) -> Self {
         LinkedList {
             container,
@@ -69,7 +71,7 @@ impl<'a, 't, C: ContainerAdapter<'t, T>, T: LinkAdapter<'t, T, LinkTag>, LinkTag
             prev_link.set_next(Some(elem));
             self.link_start.set_prev(Some(elem));
         } else {
-            let elem = self.container.as_mut(elem);
+            let elem = self.container.as_mut1(elem);
             let elem_link = elem.link_mut();
             elem_link.set_next(self.link_start.next());
             elem_link.set_prev(self.link_start.prev());
@@ -91,7 +93,7 @@ impl<'a, 't, C: ContainerAdapter<'t, T>, T: LinkAdapter<'t, T, LinkTag>, LinkTag
             } else {
                 self.link_start.set_next(None);
                 self.link_start.set_prev(None);
-                let front = self.container.as_mut(front);
+                let front = self.container.as_mut1(front);
                 let front_link = front.link_mut();
                 front_link.set_next(None);
                 front_link.set_prev(None);

@@ -1,6 +1,6 @@
 use super::timer;
-use crate::task;
 use crate::macros::*;
+use crate::task;
 
 #[no_mangle]
 pub extern "C" fn cramp32_handle_exception() {
