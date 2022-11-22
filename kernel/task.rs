@@ -7,6 +7,7 @@ use crate::zeroed_array;
 
 const TASK_PRIORITY_MAX: u32 = 8;
 const TASK_TIME_SLICE: i32 = 10; // should meet timer intr cycle
+pub const INIT_TASK_TID: u32 = 1;
 
 type TaskList<'t> = [Task<'t>; config::NUM_TASKS as usize];
 type RunQueue<'t> = list::ListLink<'t, Task<'t>>;
@@ -14,14 +15,12 @@ type RunQueue<'t> = list::ListLink<'t, Task<'t>>;
 #[repr(align(16))]
 pub struct TaskPool<'t> {
     tasks: TaskList<'t>,
-    idle_task: Task<'t>,
     current: Option<&'t Task<'t>>,
     runqueues: [RunQueue<'t>; TASK_PRIORITY_MAX as usize],
 }
 
 static mut TASK_POOL: TaskPool<'static> = TaskPool {
     tasks: zeroed_array!(Task, config::NUM_TASKS as usize),
-    idle_task: zeroed_const!(Task),
     current: None,
     runqueues: zeroed_array!(list::ListLink<'static, Task>, TASK_PRIORITY_MAX as usize),
 };
@@ -101,14 +100,6 @@ impl<'t> list::ContainerAdapter<'t, Task<'t>> for TaskList<'t> {
 struct RunQueueTag;
 
 impl<'t> TaskPool<'t> {
-    fn get_task(&self, tid: u32) -> &'t Task<'t> {
-        self.tasks.task(tid)
-    }
-
-    fn get_task_mut(&mut self, tid: u32) -> &mut Task<'t> {
-        self.tasks.task_mut(tid)
-    }
-
     // fn active_iter(&self) -> ActiveIter {
     //     ActiveIter { tid: 0, task_pool: self }
     // }
@@ -126,19 +117,30 @@ impl<'t> TaskPool<'t> {
         })
     }
 
-    fn init_task(tid: u32, task: &mut Task<'t>) -> Result<(), Error> {
+    fn initiate_task(tid: u32, task: &mut Task<'t>, ip: usize) -> Result<(), Error> {
         if task.noarch().state != TaskState::Unused {
             return Err(Error::AlreadyExists);
         }
-        *task = Task::create(tid)?;
+        *task = Task::create(tid, ip)?;
         Ok(())
+    }
+
+    pub fn create_user_task(&mut self, tid: u32, ip: usize) -> Result<(), Error> {
+        self.tasks
+            .map_mut1(self.tasks.task(tid), |task| {
+                Self::initiate_task(tid, task, ip)
+            })
+            .map(|_| self.resume_task(self.tasks.task(tid)))
     }
 
     pub fn create_idle_task(&mut self) -> Result<(), Error> {
         self.tasks
-            .map_mut1(Self::detached(&self.idle_task), |task| {
-                Self::init_task(0, task)
+            .map_mut1(self.tasks.task(0), |task| {
+                Self::initiate_task(0, task, 0).map(|_| {
+                    task.noarch_mut().task_type = TaskType::Idle;
+                })
             })
+            .map(|_| self.current = Some(self.tasks.task(0)))
     }
 
     fn enqueue_task(&mut self, task: &'t Task<'t>) {
@@ -146,8 +148,11 @@ impl<'t> TaskPool<'t> {
         list.push_back(task)
     }
 
-    fn detached(p: *const Task<'t>) -> &'t Task<'t> {
-        unsafe { &*p }
+    fn resume_task(&mut self, task: &'t Task<'t>) {
+        self.tasks.map_mut1(task, |task| {
+            task.noarch_mut().state = TaskState::Runnable;
+        });
+        self.enqueue_task(task);
     }
 
     fn scheduler(&mut self, current: &'t Task<'t>) -> &'t Task<'t> {
@@ -163,7 +168,7 @@ impl<'t> TaskPool<'t> {
                 return task;
             }
         }
-        Self::detached(&self.idle_task)
+        self.tasks.task(0)
     }
 
     pub fn task_switch(&mut self) {
@@ -172,14 +177,14 @@ impl<'t> TaskPool<'t> {
         let prev: &'t Task<'t> = unsafe { self.current.unwrap_unchecked() };
         let next: &'t Task<'t> = self.scheduler(prev);
 
-        self.tasks.map_mut2(prev, next, |prev, next| {
+        self.tasks.map_mut2(prev, next, |_prev, next| {
             next.noarch_mut().quantum = TASK_TIME_SLICE;
-            if prev.noarch().tid == next.noarch().tid {
-                // No runnable threads other than the current one. Continue executing
-                // the current thread.
-                return;
-            }
         });
+        if prev.noarch().tid == next.noarch().tid {
+            // No runnable threads other than the current one. Continue executing
+            // the current thread.
+            return;
+        }
 
         self.current = Some(next);
         self.tasks
@@ -242,11 +247,11 @@ pub trait GetNoarchTask<'t> {
 }
 
 pub trait TaskOps<'t> {
-    fn create(tid: u32) -> Result<Task<'t>, Error>;
+    fn create(tid: u32, ip: usize) -> Result<Task<'t>, Error>;
 }
 
 impl<'t> TaskOps<'t> for Task<'t> {
-    fn create(tid: u32) -> Result<Task<'t>, Error> {
+    fn create(tid: u32, ip: usize) -> Result<Task<'t>, Error> {
         Task::arch_task_create(
             NoarchTask {
                 tid,
@@ -256,7 +261,7 @@ impl<'t> TaskOps<'t> for Task<'t> {
                 priority: TASK_PRIORITY_MAX - 1,
                 runqueue_link: list::ListLink::new(),
             },
-            27,
+            ip,
         )
     }
 }
@@ -268,9 +273,11 @@ pub fn get_task_pool() -> &'static mut TaskPool<'static> {
 pub fn handle_timer_irq() {
     let task_pool = get_task_pool();
 
-    let current = task_pool.tasks.as_mut1(task_pool.current());
-    current.noarch_mut().quantum -= 1;
-    if current.noarch().quantum < 0 {
-        task_pool.task_switch();
+    if let Some(current) = task_pool.current {
+        let current = task_pool.tasks.as_mut1(current);
+        current.noarch_mut().quantum -= 1;
+        if current.noarch().quantum < 0 {
+            task_pool.task_switch();
+        }
     }
 }

@@ -45,11 +45,13 @@ impl MachineTimer {
     pub fn init() -> Self {
         let clock_hz = mmio::readv(REG_CONFIG_CLOCK_HZ);
         let tick_span = clock_hz / 1000;
-        let next_tick = Self::read_mtime() + tick_span as u64;
-        MachineTimer {
+        let next_tick = Self::read_mtime();
+        let mut timer = MachineTimer {
             next_tick,
             tick_span,
-        }
+        };
+        timer.reload();
+        timer
     }
 
     pub fn reload(&mut self) {

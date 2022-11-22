@@ -30,9 +30,9 @@ fn enable_machine_external_and_timer_interrupt() {
 
 fn init_csr() {
     extern "C" {
-        static intr_handler: u32;
+        fn intr_handler();
     }
-    cramp32_csrw!("mtvec", intr_handler);
+    cramp32_csrw!("mtvec", intr_handler as u32);
     irq::init();
     enable_interrupt();
     enable_machine_external_and_timer_interrupt();

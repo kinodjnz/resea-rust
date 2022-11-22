@@ -5,7 +5,7 @@
 #[macro_use]
 mod macros;
 
-//mod cycle;
+mod cycle;
 //mod gpio;
 //mod loader;
 mod mmio;
