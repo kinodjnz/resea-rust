@@ -3,7 +3,6 @@ NAME = kernel
 ARCH = cramp32
 # ARCH = riscv32
 TARGET = $(ARCH)imc-unknown-none-elf
-# TARGET = riscv32imc-unknown-none-elf
 
 LLVM_PATH = ../../rust-lang/rust/build/aarch64-apple-darwin/llvm/bin
 

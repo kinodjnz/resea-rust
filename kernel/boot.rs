@@ -1,9 +1,9 @@
+use crate::cycle;
 use crate::macros::*;
 use crate::task;
-use crate::cycle;
 
 pub fn kmain() -> ! {
-    printk!(b"\nBooting CResea v0.1\n");
+    printk!(b"\nBooting Resea v0.0.1\n");
     cycle::init();
     if task::get_task_pool()
         .create_user_task(task::INIT_TASK_TID, (init_task as *const ()) as usize)

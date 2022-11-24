@@ -4,120 +4,114 @@ use crate::error::Error;
 use crate::list;
 use crate::macros::*;
 use crate::zeroed_array;
+use core::cell::UnsafeCell;
 
 const TASK_PRIORITY_MAX: u32 = 8;
 const TASK_TIME_SLICE: i32 = 10; // should meet timer intr cycle
 pub const INIT_TASK_TID: u32 = 1;
 
-type TaskList<'t> = [Task<'t>; config::NUM_TASKS as usize];
-type RunQueue<'t> = list::ListLink<'t, Task<'t>>;
+type TaskCell = UnsafeCell<Task>;
+type TaskRef = &'static TaskCell;
+type TaskList = [UnsafeCell<Task>; config::NUM_TASKS as usize];
+type RunQueue = list::ListLink<Task>;
 
 #[repr(align(16))]
-pub struct TaskPool<'t> {
-    tasks: TaskList<'t>,
-    current: Option<&'t Task<'t>>,
-    runqueues: [RunQueue<'t>; TASK_PRIORITY_MAX as usize],
+pub struct TaskPool {
+    tasks: TaskList,
+    current: Option<&'static UnsafeCell<Task>>,
+    runqueues: [UnsafeCell<RunQueue>; TASK_PRIORITY_MAX as usize],
 }
 
-static mut TASK_POOL: TaskPool<'static> = TaskPool {
-    tasks: zeroed_array!(Task, config::NUM_TASKS as usize),
+static mut TASK_POOL: TaskPool = TaskPool {
+    tasks: zeroed_array!(UnsafeCell<Task>, config::NUM_TASKS as usize),
     current: None,
-    runqueues: zeroed_array!(list::ListLink<'static, Task>, TASK_PRIORITY_MAX as usize),
+    runqueues: zeroed_array!(UnsafeCell<list::ListLink<Task>>, TASK_PRIORITY_MAX as usize),
 };
 
-trait TaskListOps<'t> {
-    fn task(&self, tid: u32) -> &'t Task<'t>;
-    fn task_mut(&mut self, tid: u32) -> &mut Task<'t>;
-    fn as_mut1(&mut self, t: &'t Task<'t>) -> &'t mut Task<'t>;
-    fn as_mut2(&mut self, t1: &'t Task<'t>, t2: &'t Task<'t>) -> (&mut Task<'t>, &mut Task<'t>);
-    fn map_mut1<R, F: FnOnce(&mut Task<'t>) -> R>(&mut self, t1: &'t Task<'t>, f: F) -> R;
-    fn map_mut2<R, F: FnOnce(&mut Task<'t>, &mut Task<'t>) -> R>(
-        &mut self,
-        t1: &'t Task<'t>,
-        t2: &'t Task<'t>,
+trait TaskListOps {
+    fn task(&self, tid: u32) -> TaskRef;
+    fn task_mut(&mut self, tid: u32) -> &mut Task;
+    fn map_mut1<R, F: FnOnce(&mut Task) -> R>(&self, t1: TaskRef, f: F) -> R;
+    fn map_mut2<R, F: FnOnce(&mut Task, &mut Task) -> R>(
+        &self,
+        t1: TaskRef,
+        t2: TaskRef,
         f: F,
     ) -> R;
 }
 
-impl<'t> TaskListOps<'t> for TaskList<'t> {
-    fn task(&self, tid: u32) -> &'t Task<'t> {
-        unsafe { &*(self.get_unchecked(tid as usize) as *const Task) }
+impl TaskListOps for TaskList {
+    fn task(&self, tid: u32) -> &'static UnsafeCell<Task> {
+        unsafe { &*(self.get_unchecked(tid as usize) as *const UnsafeCell<Task>) }
     }
 
-    fn task_mut(&mut self, tid: u32) -> &mut Task<'t> {
-        unsafe { self.get_unchecked_mut(tid as usize) }
+    fn task_mut(&mut self, tid: u32) -> &mut Task {
+        unsafe { self.get_unchecked_mut(tid as usize).get_mut() }
     }
 
-    fn as_mut1(&mut self, t: &'t Task<'t>) -> &'t mut Task<'t> {
-        unsafe { &mut *(t as *const Task as *mut Task<'t>) }
+    fn map_mut1<R, F: FnOnce(&mut Task) -> R>(&self, t1: TaskRef, f: F) -> R {
+        f(unsafe { &mut *t1.get() })
     }
 
-    fn as_mut2(&mut self, t1: &'t Task<'t>, t2: &'t Task<'t>) -> (&mut Task<'t>, &mut Task<'t>) {
-        unsafe {
-            (
-                &mut *(t1 as *const Task as *mut Task),
-                &mut *(t2 as *const Task as *mut Task),
-            )
-        }
-    }
-
-    fn map_mut1<R, F: FnOnce(&mut Task<'t>) -> R>(&mut self, t1: &'t Task<'t>, f: F) -> R {
-        f(unsafe { &mut *(t1 as *const Task as *mut Task) })
-    }
-
-    fn map_mut2<R, F: FnOnce(&mut Task<'t>, &mut Task<'t>) -> R>(
-        &mut self,
-        t1: &'t Task<'t>,
-        t2: &'t Task<'t>,
+    fn map_mut2<R, F: FnOnce(&mut Task, &mut Task) -> R>(
+        &self,
+        t1: TaskRef,
+        t2: TaskRef,
         f: F,
     ) -> R {
-        f(unsafe { &mut *(t1 as *const Task as *mut Task) }, unsafe {
-            &mut *(t2 as *const Task as *mut Task)
-        })
+        if t1.get() == t2.get() {
+            panic!("Mutated tasks are identical");
+        }
+        f(unsafe { &mut *t1.get() }, unsafe { &mut *t2.get() })
     }
 }
 
-impl<'t> list::LinkAdapter<'t, Task<'t>, RunQueueTag> for Task<'t> {
-    fn link(&'t self) -> &'t list::ListLink<'t, Task<'t>> {
+impl list::LinkAdapter<Task, RunQueueTag> for Task {
+    fn link(&self) -> &list::ListLink<Task> {
         &self.noarch().runqueue_link
     }
 
-    fn link_mut(&mut self) -> &mut list::ListLink<'t, Task<'t>> {
+    fn link_mut(&mut self) -> &mut list::ListLink<Task> {
         &mut self.noarch_mut().runqueue_link
     }
 }
 
-impl<'t> list::ContainerAdapter<'t, Task<'t>> for TaskList<'t> {
-    fn as_mut1(&mut self, t: &'t Task<'t>) -> &'t mut Task<'t> {
-        <TaskList as TaskListOps>::as_mut1(self, t)
+impl list::ContainerAdapter<Task> for TaskList {
+    fn map_mut1<R, F: FnOnce(&mut Task) -> R>(&self, t1: TaskRef, f: F) -> R {
+        <TaskList as TaskListOps>::map_mut1(self, t1, f)
     }
 
-    fn as_mut2(&mut self, t1: &'t Task<'t>, t2: &'t Task<'t>) -> (&mut Task<'t>, &mut Task<'t>) {
-        <TaskList as TaskListOps>::as_mut2(self, t1, t2)
+    fn map_mut2<R, F: FnOnce(&mut Task, &mut Task) -> R>(
+        &self,
+        t1: TaskRef,
+        t2: TaskRef,
+        f: F,
+    ) -> R {
+        <TaskList as TaskListOps>::map_mut2(self, t1, t2, f)
     }
 }
 
 struct RunQueueTag;
 
-impl<'t> TaskPool<'t> {
+impl TaskPool {
     // fn active_iter(&self) -> ActiveIter {
     //     ActiveIter { tid: 0, task_pool: self }
     // }
 
-    fn current(&self) -> &'t Task<'t> {
+    fn current(&self) -> TaskRef {
         unsafe { self.current.unwrap_unchecked() }
     }
 
     fn list_for_runqueue(
         &mut self,
         priority: u32,
-    ) -> list::LinkedList<'_, 't, TaskList<'t>, Task<'t>, RunQueueTag> {
-        list::LinkedList::new(&mut self.tasks, unsafe {
+    ) -> list::LinkedList<'_, TaskList, Task, RunQueueTag> {
+        list::LinkedList::new(&self.tasks, unsafe {
             self.runqueues.get_unchecked_mut(priority as usize)
         })
     }
 
-    fn initiate_task(tid: u32, task: &mut Task<'t>, ip: usize) -> Result<(), Error> {
+    fn initiate_task(tid: u32, task: &mut Task, ip: usize) -> Result<(), Error> {
         if task.noarch().state != TaskState::Unused {
             return Err(Error::AlreadyExists);
         }
@@ -143,22 +137,20 @@ impl<'t> TaskPool<'t> {
             .map(|_| self.current = Some(self.tasks.task(0)))
     }
 
-    fn enqueue_task(&mut self, task: &'t Task<'t>) {
-        let mut list = self.list_for_runqueue(task.noarch().priority);
+    fn enqueue_task(&mut self, task: TaskRef) {
+        let mut list = self.list_for_runqueue(task.priority());
         list.push_back(task)
     }
 
-    fn resume_task(&mut self, task: &'t Task<'t>) {
+    fn resume_task(&mut self, task: TaskRef) {
         self.tasks.map_mut1(task, |task| {
             task.noarch_mut().state = TaskState::Runnable;
         });
         self.enqueue_task(task);
     }
 
-    fn scheduler(&mut self, current: &'t Task<'t>) -> &'t Task<'t> {
-        if current.noarch().task_type != TaskType::Idle
-            && current.noarch().state == TaskState::Runnable
-        {
+    fn scheduler(&mut self, current: TaskRef) -> TaskRef {
+        if current.task_type() != TaskType::Idle && current.state() == TaskState::Runnable {
             // The current task is still runnable. Enqueue into the runqueue.
             self.enqueue_task(current);
         }
@@ -174,13 +166,12 @@ impl<'t> TaskPool<'t> {
     pub fn task_switch(&mut self) {
         // stack_check();
 
-        let prev: &'t Task<'t> = unsafe { self.current.unwrap_unchecked() };
-        let next: &'t Task<'t> = self.scheduler(prev);
+        let prev: TaskRef = self.current();
+        let next: TaskRef = self.scheduler(prev);
 
-        self.tasks.map_mut2(prev, next, |_prev, next| {
-            next.noarch_mut().quantum = TASK_TIME_SLICE;
-        });
-        if prev.noarch().tid == next.noarch().tid {
+        self.tasks
+            .map_mut1(next, |next| next.noarch_mut().quantum = TASK_TIME_SLICE);
+        if prev.tid() == next.tid() {
             // No runnable threads other than the current one. Continue executing
             // the current thread.
             return;
@@ -214,44 +205,44 @@ impl<'t> TaskPool<'t> {
 //     }
 // }
 
-pub struct NoarchTask<'t> {
+pub struct NoarchTask {
     pub tid: u32,
     task_type: TaskType,
     pub state: TaskState,
     quantum: i32,
     priority: u32,
-    runqueue_link: list::ListLink<'t, Task<'t>>,
+    runqueue_link: list::ListLink<Task>,
 }
 
-#[derive(PartialEq)]
+#[derive(PartialEq, Clone, Copy)]
 pub enum TaskState {
     Unused = 0,
     Runnable,
     Blocked,
 }
 
-#[derive(PartialEq)]
+#[derive(PartialEq, Clone, Copy)]
 pub enum TaskType {
     Idle = 0,
     User,
 }
 
-pub trait KArchTask<'t> {
-    fn arch_task_create(task: NoarchTask<'t>, pc: usize) -> Result<Task<'t>, Error>;
-    fn arch_task_switch(prev: &mut Task<'t>, next: &mut Task<'t>);
+pub trait KArchTask {
+    fn arch_task_create(task: NoarchTask, pc: usize) -> Result<Task, Error>;
+    fn arch_task_switch(prev: &mut Task, next: &mut Task);
 }
 
-pub trait GetNoarchTask<'t> {
-    fn noarch(&'t self) -> &'t NoarchTask<'t>;
-    fn noarch_mut(&mut self) -> &mut NoarchTask<'t>;
+pub trait GetNoarchTask {
+    fn noarch(&self) -> &NoarchTask;
+    fn noarch_mut(&mut self) -> &mut NoarchTask;
 }
 
-pub trait TaskOps<'t> {
-    fn create(tid: u32, ip: usize) -> Result<Task<'t>, Error>;
+pub trait TaskOps {
+    fn create(tid: u32, ip: usize) -> Result<Task, Error>;
 }
 
-impl<'t> TaskOps<'t> for Task<'t> {
-    fn create(tid: u32, ip: usize) -> Result<Task<'t>, Error> {
+impl TaskOps for Task {
+    fn create(tid: u32, ip: usize) -> Result<Task, Error> {
         Task::arch_task_create(
             NoarchTask {
                 tid,
@@ -266,7 +257,37 @@ impl<'t> TaskOps<'t> for Task<'t> {
     }
 }
 
-pub fn get_task_pool() -> &'static mut TaskPool<'static> {
+pub trait TaskCellOps {
+    fn tid(&self) -> u32;
+    fn priority(&self) -> u32;
+    fn quantum(&self) -> i32;
+    fn task_type(&self) -> TaskType;
+    fn state(&self) -> TaskState;
+    fn noarch(&self) -> &NoarchTask;
+}
+
+impl TaskCellOps for TaskCell {
+    fn noarch(&self) -> &NoarchTask {
+        unsafe { (&*self.get()).noarch() }
+    }
+    fn tid(&self) -> u32 {
+        self.noarch().tid
+    }
+    fn priority(&self) -> u32 {
+        self.noarch().priority
+    }
+    fn quantum(&self) -> i32 {
+        self.noarch().quantum
+    }
+    fn task_type(&self) -> TaskType {
+        self.noarch().task_type
+    }
+    fn state(&self) -> TaskState {
+        self.noarch().state
+    }
+}
+
+pub fn get_task_pool() -> &'static mut TaskPool {
     unsafe { &mut TASK_POOL }
 }
 
@@ -274,9 +295,10 @@ pub fn handle_timer_irq() {
     let task_pool = get_task_pool();
 
     if let Some(current) = task_pool.current {
-        let current = task_pool.tasks.as_mut1(current);
-        current.noarch_mut().quantum -= 1;
-        if current.noarch().quantum < 0 {
+        task_pool
+            .tasks
+            .map_mut1(current, |current| current.noarch_mut().quantum -= 1);
+        if current.quantum() < 0 {
             task_pool.task_switch();
         }
     }
