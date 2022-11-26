@@ -47,7 +47,7 @@ where
             i += 1;
             if ch == b'}' {
                 self.head.fmt(writer);
-                self.tail.format(writer, format);
+                self.tail.format(writer, &format[i..]);
                 return;
             }
         }

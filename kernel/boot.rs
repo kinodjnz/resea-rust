@@ -1,6 +1,7 @@
 use crate::cycle;
 use crate::macros::*;
 use crate::task;
+use crate::syscall;
 
 pub fn kmain() -> ! {
     printk!(b"\nBooting Resea v0.0.1\n");
@@ -35,7 +36,8 @@ pub fn worker_task() -> ! {
     cycle::wait(cycle::clock_hz() / 2);
     printk!(b"worker task started\n");
     loop {
-        printk!(b"Hello, RISC-V\n");
+        syscall::console_write(b"Hello, RISC-V\n");
+        syscall::nop();
         cycle::wait(cycle::clock_hz());
     }
 }

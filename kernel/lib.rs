@@ -1,6 +1,7 @@
 #![no_std]
 #![feature(fn_traits)]
 #![feature(unboxed_closures)]
+#![feature(try_trait_v2)]
 
 #[macro_use]
 mod macros;
@@ -14,9 +15,9 @@ mod arch;
 mod boot;
 mod config;
 mod console;
-mod error;
 mod fmt;
 mod list;
+mod result;
 mod syscall;
 mod task;
 

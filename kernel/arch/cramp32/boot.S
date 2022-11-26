@@ -3,5 +3,5 @@
 .global boot
 
 boot:
-	la	sp, __boot_stack_end
+	auipc	sp, %pcrel_hi(__boot_stack_end)
 	jump	cramp32_init, t0

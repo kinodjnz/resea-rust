@@ -1,8 +1,8 @@
 pub use crate::arch::Task;
 use crate::config;
-use crate::error::Error;
 use crate::list;
 use crate::macros::*;
+use crate::result::KResult;
 use crate::zeroed_array;
 use core::cell::UnsafeCell;
 
@@ -60,7 +60,7 @@ impl TaskListOps for TaskList {
         f: F,
     ) -> R {
         if t1.get() == t2.get() {
-            panic!("Mutated tasks are identical");
+            kpanic!(b"Mutated tasks are identical\n");
         }
         f(unsafe { &mut *t1.get() }, unsafe { &mut *t2.get() })
     }
@@ -111,15 +111,15 @@ impl TaskPool {
         })
     }
 
-    fn initiate_task(tid: u32, task: &mut Task, ip: usize) -> Result<(), Error> {
+    fn initiate_task(tid: u32, task: &mut Task, ip: usize) -> KResult<()> {
         if task.noarch().state != TaskState::Unused {
-            return Err(Error::AlreadyExists);
+            return KResult::AlreadyExists;
         }
         *task = Task::create(tid, ip)?;
-        Ok(())
+        KResult::Ok(())
     }
 
-    pub fn create_user_task(&mut self, tid: u32, ip: usize) -> Result<(), Error> {
+    pub fn create_user_task(&mut self, tid: u32, ip: usize) -> KResult<()> {
         self.tasks
             .map_mut1(self.tasks.task(tid), |task| {
                 Self::initiate_task(tid, task, ip)
@@ -127,7 +127,7 @@ impl TaskPool {
             .map(|_| self.resume_task(self.tasks.task(tid)))
     }
 
-    pub fn create_idle_task(&mut self) -> Result<(), Error> {
+    pub fn create_idle_task(&mut self) -> KResult<()> {
         self.tasks
             .map_mut1(self.tasks.task(0), |task| {
                 Self::initiate_task(0, task, 0).map(|_| {
@@ -183,6 +183,16 @@ impl TaskPool {
 
         // stack_check();
     }
+
+    pub fn set_current_timeout(&mut self, timeout: u32) -> KResult<()> {
+        if let Some(current) = self.current {
+            self.tasks
+                .map_mut1(current, |current| current.noarch_mut().timeout = timeout);
+            KResult::Ok(())
+        } else {
+            KResult::NotReady
+        }
+    }
 }
 
 // struct ActiveIter<'a> {
@@ -211,6 +221,7 @@ pub struct NoarchTask {
     pub state: TaskState,
     quantum: i32,
     priority: u32,
+    timeout: u32,
     runqueue_link: list::ListLink<Task>,
 }
 
@@ -228,7 +239,7 @@ pub enum TaskType {
 }
 
 pub trait KArchTask {
-    fn arch_task_create(task: NoarchTask, pc: usize) -> Result<Task, Error>;
+    fn arch_task_create(task: NoarchTask, pc: usize) -> KResult<Task>;
     fn arch_task_switch(prev: &mut Task, next: &mut Task);
 }
 
@@ -238,11 +249,11 @@ pub trait GetNoarchTask {
 }
 
 pub trait TaskOps {
-    fn create(tid: u32, ip: usize) -> Result<Task, Error>;
+    fn create(tid: u32, ip: usize) -> KResult<Task>;
 }
 
 impl TaskOps for Task {
-    fn create(tid: u32, ip: usize) -> Result<Task, Error> {
+    fn create(tid: u32, ip: usize) -> KResult<Task> {
         Task::arch_task_create(
             NoarchTask {
                 tid,
@@ -250,6 +261,7 @@ impl TaskOps for Task {
                 state: TaskState::Blocked,
                 quantum: 0,
                 priority: TASK_PRIORITY_MAX - 1,
+                timeout: 0,
                 runqueue_link: list::ListLink::new(),
             },
             ip,

@@ -1,6 +1,6 @@
 use crate::config;
-use crate::error::Error;
 use crate::mmio;
+use crate::result::KResult;
 use crate::task::{GetNoarchTask, KArchTask, NoarchTask};
 
 const STACK_SIZE: usize = 4096;
@@ -43,8 +43,8 @@ fn init_stack(noarch_task: &NoarchTask, pc: usize) -> usize {
 }
 
 impl KArchTask for Cramp32Task {
-    fn arch_task_create(noarch_task: NoarchTask, pc: usize) -> Result<Cramp32Task, Error> {
-        Ok(Cramp32Task {
+    fn arch_task_create(noarch_task: NoarchTask, pc: usize) -> KResult<Cramp32Task> {
+        KResult::Ok(Cramp32Task {
             stack: init_stack(&noarch_task, pc),
             noarch_task,
         })
