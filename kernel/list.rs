@@ -35,22 +35,6 @@ impl<T> ListLink<T> {
     }
 }
 
-pub trait CellListLinkOps<T> {
-    fn next(&self) -> Option<&'static UnsafeCell<T>>;
-    fn prev(&self) -> Option<&'static UnsafeCell<T>>;
-}
-
-/*
-impl<T> CellListLinkOps<T> for UnsafeCell<ListLink<T>> {
-    fn next(&self) -> Option<&'static UnsafeCell<T>> {
-        unsafe { (&*self.get()).next }
-    }
-    fn prev(&self) -> Option<&'static UnsafeCell<T>> {
-        unsafe { (&*self.get()).prev }
-    }
-}
-*/
-
 pub trait LinkAdapter<T, LinkTag> {
     fn link(&self) -> &ListLink<T>;
     fn link_mut(&mut self) -> &mut ListLink<T>;

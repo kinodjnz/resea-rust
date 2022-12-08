@@ -28,6 +28,7 @@ pub fn mzero_align4<T>(p: *mut T, q: *const T) {
     }
 }
 
+#[allow(unused)]
 pub const fn size_of_aligned4<T>() -> usize {
     let size = mem::size_of::<T>();
     if size % 4 != 0 {
@@ -42,6 +43,7 @@ pub fn mzero_array<T, const N: usize>(p: &mut [T; N]) {
     });
 }
 
+#[allow(unused)]
 pub fn mzero<T, const N: usize>(p: *mut T) {
     mzero_align4(p, unsafe { p.add(1) });
 }

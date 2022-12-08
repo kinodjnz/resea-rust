@@ -2,6 +2,7 @@
 #![feature(fn_traits)]
 #![feature(unboxed_closures)]
 #![feature(try_trait_v2)]
+#![feature(cell_update)]
 
 #[macro_use]
 mod macros;

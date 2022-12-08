@@ -5,7 +5,7 @@ use crate::macros::*;
 use crate::mmio;
 use crate::result::KResult;
 use crate::zeroed_array;
-use core::cell::UnsafeCell;
+use core::cell::{Cell, UnsafeCell};
 use core::mem;
 use core::ops::BitOr;
 
@@ -193,8 +193,7 @@ impl TaskPool {
         let prev: TaskRef = self.current();
         let next: TaskRef = self.scheduler(prev);
 
-        self.tasks
-            .map_mut1(next, |next| next.noarch_mut().quantum = TASK_TIME_SLICE);
+        next.noarch().quantum.set(TASK_TIME_SLICE);
         if prev.tid() == next.tid() {
             // No runnable threads other than the current one. Continue executing
             // the current thread.
@@ -202,8 +201,7 @@ impl TaskPool {
         }
 
         self.current = Some(next);
-        self.tasks
-            .map_mut2(prev, next, |prev, next| Task::arch_task_switch(prev, next));
+        Task::arch_task_switch(unsafe { &*prev.get() }, unsafe { &*next.get() });
 
         // stack_check();
     }
@@ -288,8 +286,8 @@ pub struct NoarchTask {
     pub tid: u32,
     task_type: TaskType,
     state: TaskState,
-    quantum: i32,
     priority: u32,
+    quantum: Cell<i32>,
     message: Message,
     src_tid: u32,
     notifications: Notifications,
@@ -378,7 +376,7 @@ impl Message {
 
 pub trait KArchTask {
     fn arch_task_create(task: NoarchTask, pc: usize) -> KResult<Task>;
-    fn arch_task_switch(prev: &mut Task, next: &mut Task);
+    fn arch_task_switch(prev: &Task, next: &Task);
 }
 
 pub trait GetNoarchTask {
@@ -397,8 +395,8 @@ impl TaskOps for Task {
                 tid,
                 task_type: TaskType::User,
                 state: TaskState::Blocked,
-                quantum: 0,
                 priority: TASK_PRIORITY_MAX - 1,
+                quantum: 0.into(),
                 message: unsafe { core::mem::zeroed() },
                 notifications: Notifications::none(),
                 src_tid: 0,
@@ -435,7 +433,7 @@ impl TaskCellOps for TaskCell {
         self.noarch().priority
     }
     fn quantum(&self) -> i32 {
-        self.noarch().quantum
+        self.noarch().quantum.get()
     }
     fn message(&self) -> &Message {
         &self.noarch().message
@@ -465,9 +463,7 @@ pub fn handle_timer_irq() {
     let task_pool = get_task_pool();
 
     if let Some(current) = task_pool.current {
-        task_pool
-            .tasks
-            .map_mut1(current, |current| current.noarch_mut().quantum -= 1);
+        current.noarch().quantum.update(|quantum| quantum - 1);
         if current.quantum() < 0 {
             task_pool.task_switch();
         }
