@@ -21,11 +21,9 @@ pub struct Cramp32Task {
     noarch_task: NoarchTask,
 }
 
-fn init_stack(noarch_task: &NoarchTask, pc: usize) -> usize {
+fn init_stack(tid: u32, pc: usize) -> usize {
     unsafe {
-        let stack: *mut u32 = EXCEPTION_STACKS
-            .stack
-            .get_unchecked_mut(noarch_task.tid as usize) as *mut u32;
+        let stack: *mut u32 = EXCEPTION_STACKS.stack.get_unchecked_mut(tid as usize) as *mut u32;
         let sp = stack.add(STACK_COUNT).sub(16);
         extern "C" {
             fn cramp32_start_task();
@@ -45,7 +43,7 @@ fn init_stack(noarch_task: &NoarchTask, pc: usize) -> usize {
 impl KArchTask for Cramp32Task {
     fn arch_task_create(noarch_task: NoarchTask, pc: usize) -> KResult<Cramp32Task> {
         KResult::Ok(Cramp32Task {
-            stack: init_stack(&noarch_task, pc),
+            stack: init_stack(noarch_task.tid, pc),
             noarch_task,
         })
     }

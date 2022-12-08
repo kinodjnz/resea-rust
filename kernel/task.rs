@@ -2,22 +2,26 @@ pub use crate::arch::Task;
 use crate::config;
 use crate::list;
 use crate::macros::*;
+use crate::mmio;
 use crate::result::KResult;
 use crate::zeroed_array;
 use core::cell::UnsafeCell;
+use core::mem;
+use core::ops::BitOr;
 
 const TASK_PRIORITY_MAX: u32 = 8;
 const TASK_TIME_SLICE: i32 = 10; // should meet timer intr cycle
-pub const INIT_TASK_TID: u32 = 1;
+pub const KERNEL_TID: u32 = 0;
+pub const INIT_TID: u32 = 1;
 
 type TaskCell = UnsafeCell<Task>;
-type TaskRef = &'static TaskCell;
+pub type TaskRef = &'static TaskCell;
 type TaskList = [UnsafeCell<Task>; config::NUM_TASKS as usize];
 type RunQueue = list::ListLink<Task>;
 
 #[repr(align(16))]
 pub struct TaskPool {
-    tasks: TaskList,
+    pub tasks: TaskList,
     current: Option<&'static UnsafeCell<Task>>,
     runqueues: [UnsafeCell<RunQueue>; TASK_PRIORITY_MAX as usize],
 }
@@ -30,7 +34,7 @@ static mut TASK_POOL: TaskPool = TaskPool {
 
 trait TaskListOps {
     fn task(&self, tid: u32) -> TaskRef;
-    fn task_mut(&mut self, tid: u32) -> &mut Task;
+    // fn task_mut(&mut self, tid: u32) -> &mut Task;
     fn map_mut1<R, F: FnOnce(&mut Task) -> R>(&self, t1: TaskRef, f: F) -> R;
     fn map_mut2<R, F: FnOnce(&mut Task, &mut Task) -> R>(
         &self,
@@ -45,9 +49,9 @@ impl TaskListOps for TaskList {
         unsafe { &*(self.get_unchecked(tid as usize) as *const UnsafeCell<Task>) }
     }
 
-    fn task_mut(&mut self, tid: u32) -> &mut Task {
-        unsafe { self.get_unchecked_mut(tid as usize).get_mut() }
-    }
+    // fn task_mut(&mut self, tid: u32) -> &mut Task {
+    //     unsafe { self.get_unchecked_mut(tid as usize).get_mut() }
+    // }
 
     fn map_mut1<R, F: FnOnce(&mut Task) -> R>(&self, t1: TaskRef, f: F) -> R {
         f(unsafe { &mut *t1.get() })
@@ -65,6 +69,8 @@ impl TaskListOps for TaskList {
         f(unsafe { &mut *t1.get() }, unsafe { &mut *t2.get() })
     }
 }
+
+struct RunQueueTag;
 
 impl list::LinkAdapter<Task, RunQueueTag> for Task {
     fn link(&self) -> &list::ListLink<Task> {
@@ -91,14 +97,24 @@ impl list::ContainerAdapter<Task> for TaskList {
     }
 }
 
-struct RunQueueTag;
+pub struct SendersTag;
+
+impl list::LinkAdapter<Task, SendersTag> for Task {
+    fn link(&self) -> &list::ListLink<Task> {
+        &self.noarch().sender_link
+    }
+
+    fn link_mut(&mut self) -> &mut list::ListLink<Task> {
+        &mut self.noarch_mut().sender_link
+    }
+}
 
 impl TaskPool {
     // fn active_iter(&self) -> ActiveIter {
     //     ActiveIter { tid: 0, task_pool: self }
     // }
 
-    fn current(&self) -> TaskRef {
+    pub fn current(&self) -> TaskRef {
         unsafe { self.current.unwrap_unchecked() }
     }
 
@@ -106,9 +122,10 @@ impl TaskPool {
         &mut self,
         priority: u32,
     ) -> list::LinkedList<'_, TaskList, Task, RunQueueTag> {
-        list::LinkedList::new(&self.tasks, unsafe {
-            self.runqueues.get_unchecked_mut(priority as usize)
-        })
+        list::LinkedList::new(
+            &self.tasks,
+            unsafe { self.runqueues.get_unchecked_mut(priority as usize) }.get_mut(),
+        )
     }
 
     fn initiate_task(tid: u32, task: &mut Task, ip: usize) -> KResult<()> {
@@ -139,10 +156,17 @@ impl TaskPool {
 
     fn enqueue_task(&mut self, task: TaskRef) {
         let mut list = self.list_for_runqueue(task.priority());
-        list.push_back(task)
+        list.push_back(task);
     }
 
-    fn resume_task(&mut self, task: TaskRef) {
+    // Suspends a task. Don't forget to update `task->src` as well!
+    pub fn block_task(&mut self, task: TaskRef) {
+        self.tasks.map_mut1(task, |task| {
+            task.noarch_mut().state = TaskState::Blocked;
+        });
+    }
+
+    pub fn resume_task(&mut self, task: TaskRef) {
         self.tasks.map_mut1(task, |task| {
             task.noarch_mut().state = TaskState::Runnable;
         });
@@ -193,6 +217,51 @@ impl TaskPool {
             KResult::NotReady
         }
     }
+
+    pub fn set_src_tid(&mut self, task: TaskRef, src_tid: u32) {
+        self.tasks
+            .map_mut1(task, |task| task.noarch_mut().src_tid = src_tid);
+    }
+
+    pub fn list_for_senders(
+        &mut self,
+        task: TaskRef,
+    ) -> list::LinkedList<'_, TaskList, Task, SendersTag> {
+        list::LinkedList::new(&self.tasks, unsafe { &mut *task.noarch().senders.get() })
+    }
+
+    pub fn append_sender(&mut self, task: TaskRef, appended: TaskRef) {
+        let mut list = self.list_for_senders(task);
+        list.push_back(appended);
+    }
+
+    pub fn update_notifications<F: FnOnce(Notifications) -> Notifications>(
+        &mut self,
+        task: TaskRef,
+        f: F,
+    ) {
+        self.tasks.map_mut1(task, |task| {
+            task.noarch_mut().notifications = f(task.noarch().notifications)
+        });
+    }
+
+    pub fn lookup_task(&self, tid: u32) -> KResult<TaskRef> {
+        if tid > config::NUM_TASKS {
+            KResult::InvalidArg
+        } else {
+            let task = self.tasks.task(tid);
+            if task.state() == TaskState::Unused {
+                KResult::InvalidTask
+            } else {
+                KResult::Ok(task)
+            }
+        }
+    }
+
+    pub fn update_message<F: FnOnce(&mut Message)>(&mut self, task: TaskRef, f: F) {
+        self.tasks
+            .map_mut1(task, |task| f(&mut task.noarch_mut().message));
+    }
 }
 
 // struct ActiveIter<'a> {
@@ -218,11 +287,16 @@ impl TaskPool {
 pub struct NoarchTask {
     pub tid: u32,
     task_type: TaskType,
-    pub state: TaskState,
+    state: TaskState,
     quantum: i32,
     priority: u32,
+    message: Message,
+    src_tid: u32,
+    notifications: Notifications,
     timeout: u32,
+    senders: UnsafeCell<list::ListLink<Task>>,
     runqueue_link: list::ListLink<Task>,
+    sender_link: list::ListLink<Task>,
 }
 
 #[derive(PartialEq, Clone, Copy)]
@@ -236,6 +310,70 @@ pub enum TaskState {
 pub enum TaskType {
     Idle = 0,
     User,
+}
+
+#[derive(Clone, Copy)]
+pub struct Notifications(u8);
+
+#[allow(unused)]
+impl Notifications {
+    const TIMER: u8 = 1 << 0;
+    const IRQ: u8 = 1 << 1;
+    const ABORTED: u8 = 1 << 2;
+    const ASYNC: u8 = 1 << 3;
+
+    pub fn from_u32(n: u32) -> Notifications {
+        Notifications(n as u8)
+    }
+
+    pub fn aborted() -> Notifications {
+        Notifications(Self::ABORTED)
+    }
+    pub fn clear(&self, notifications: Notifications) -> Notifications {
+        Notifications(self.0 & !notifications.0)
+    }
+    pub fn none() -> Notifications {
+        Notifications(0)
+    }
+    pub fn is_aborted(&self) -> bool {
+        self.0 & Self::ABORTED != 0
+    }
+    pub fn exists(&self) -> bool {
+        self.0 != 0
+    }
+}
+
+impl BitOr for Notifications {
+    type Output = Self;
+
+    fn bitor(self, rhs: Self) -> Self::Output {
+        Self(self.0 | rhs.0)
+    }
+}
+
+pub struct MessageType(pub u32);
+
+impl MessageType {
+    const NOTIFICATIONS: MessageType = MessageType(1);
+}
+
+pub struct Message {
+    message_type: MessageType,
+    src_tid: u32,
+    raw: [u8; 24],
+}
+
+impl Message {
+    pub fn set_notification(&mut self, notifications: Notifications) {
+        self.message_type = MessageType::NOTIFICATIONS;
+        self.src_tid = KERNEL_TID;
+        mmio::mzero_array(&mut self.raw);
+        mmio::memcpy_align4(
+            self.raw.as_mut_ptr() as *mut Notifications,
+            &notifications,
+            1,
+        );
+    }
 }
 
 pub trait KArchTask {
@@ -261,8 +399,13 @@ impl TaskOps for Task {
                 state: TaskState::Blocked,
                 quantum: 0,
                 priority: TASK_PRIORITY_MAX - 1,
+                message: unsafe { core::mem::zeroed() },
+                notifications: Notifications::none(),
+                src_tid: 0,
                 timeout: 0,
+                senders: list::ListLink::new().into(),
                 runqueue_link: list::ListLink::new(),
+                sender_link: list::ListLink::new(),
             },
             ip,
         )
@@ -273,8 +416,11 @@ pub trait TaskCellOps {
     fn tid(&self) -> u32;
     fn priority(&self) -> u32;
     fn quantum(&self) -> i32;
+    fn message(&self) -> &Message;
+    fn src_tid(&self) -> u32;
     fn task_type(&self) -> TaskType;
     fn state(&self) -> TaskState;
+    fn notifications(&self) -> Notifications;
     fn noarch(&self) -> &NoarchTask;
 }
 
@@ -291,11 +437,23 @@ impl TaskCellOps for TaskCell {
     fn quantum(&self) -> i32 {
         self.noarch().quantum
     }
+    fn message(&self) -> &Message {
+        &self.noarch().message
+    }
+    fn src_tid(&self) -> u32 {
+        self.noarch().src_tid
+    }
     fn task_type(&self) -> TaskType {
         self.noarch().task_type
     }
     fn state(&self) -> TaskState {
         self.noarch().state
+    }
+    // fn message(&self) -> &Message {
+    //     &self.noarch().message
+    // }
+    fn notifications(&self) -> Notifications {
+        self.noarch().notifications
     }
 }
 

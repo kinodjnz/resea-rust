@@ -16,6 +16,7 @@ mod boot;
 mod config;
 mod console;
 mod fmt;
+mod ipc;
 mod list;
 mod result;
 mod syscall;

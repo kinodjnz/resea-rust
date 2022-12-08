@@ -1,7 +1,7 @@
+use crate::macros::*;
 use core::convert;
 use core::mem::transmute_copy;
 use core::ops::{self, ControlFlow};
-use crate::macros::*;
 
 #[repr(align(4))]
 #[allow(dead_code)]
@@ -63,6 +63,13 @@ impl<T> KResult<T> {
     pub fn map<U, F: FnOnce(T) -> U>(self, op: F) -> KResult<U> {
         match self {
             KResult::Ok(t) => KResult::Ok(op(t)),
+            e => KResult::err_from_u32(e.err_as_u32()),
+        }
+    }
+
+    pub fn and_then<U, F: FnOnce(T) -> KResult<U>>(self, op: F) -> KResult<U> {
+        match self {
+            KResult::Ok(t) => op(t),
             e => KResult::err_from_u32(e.err_as_u32()),
         }
     }

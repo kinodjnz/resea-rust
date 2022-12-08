@@ -7,16 +7,10 @@ use crate::mmio;
 fn init_bss() {
     extern "C" {
         static mut __bss_start: u32;
-        static mut __bss_end: u32;
+        static __bss_end: u32;
     }
     unsafe {
-        let mut p: *mut u32 = &mut __bss_start;
-        let q: *mut u32 = &mut __bss_end;
-
-        while p < q {
-            mmio::writev(p, 0);
-            p = p.add(1);
-        }
+        mmio::mzero_align4(&mut __bss_start, &__bss_end);
     }
 }
 

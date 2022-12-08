@@ -1,15 +1,28 @@
-use core::slice;
-use core::arch::asm;
-use crate::result::KResult;
-use crate::task;
+use crate::config;
 use crate::console::Console;
+use crate::ipc::{self, IpcFlags};
+use crate::result::KResult;
+use crate::task::{self, Message, Notifications};
+use core::arch::asm;
+use core::slice;
 
 pub struct Syscall;
 
+#[allow(unused)]
 impl Syscall {
-    pub const NOP: u32 = 0;
+    pub const NOP: u32 = 1;
+    pub const KDEBUG: u32 = 2;
+    pub const IPC: u32 = 3;
+    pub const NOTIFY: u32 = 4;
     pub const SET_TIMER: u32 = 5;
     pub const CONSOLE_WRITE: u32 = 6;
+    pub const CREATE_TASK: u32 = 8;
+    pub const DESTROY_TASK: u32 = 9;
+    pub const EXIT_TASK: u32 = 10;
+    pub const TASK_SELF: u32 = 11;
+    pub const SCHEDULE_TASK: u32 = 12;
+    pub const IRQ_ACQUIRE: u32 = 15;
+    pub const IRQ_RELEASE: u32 = 16;
 }
 
 fn handle_set_timer(timeout: u32) -> KResult<()> {
@@ -26,12 +39,44 @@ fn handle_console_write(s: &[u8]) -> KResult<()> {
     }
 }
 
+// Send/receive IPC messages.
+fn handle_ipc(dst_tid: u32, src_tid: u32, message: &mut Message, flags: IpcFlags) -> KResult<()> {
+    if flags.is_kernel() {
+        return KResult::InvalidArg;
+    }
+    if src_tid > config::NUM_TASKS {
+        return KResult::InvalidArg;
+    }
+
+    let task_pool = task::get_task_pool();
+    let result = if flags.is_send() {
+        task_pool
+            .lookup_task(dst_tid)
+            .and_then(|task| ipc::send(task_pool, task, message, flags))
+    } else {
+        KResult::Ok(())
+    };
+    if flags.is_recv() {
+        result.and_then(|_| ipc::recv(task_pool, src_tid, message, flags))
+    } else {
+        result
+    }
+}
+
+// Sends notifications.
+fn handle_notify(dst_tid: u32, notifications: Notifications) -> KResult<()> {
+    let task_pool = task::get_task_pool();
+    task_pool
+        .lookup_task(dst_tid)
+        .and_then(|task| ipc::notify(task_pool, task, notifications))
+}
+
 #[no_mangle]
 pub extern "C" fn handle_syscall(
     a0: u32,
     a1: u32,
-    _a2: u32,
-    _a3: u32,
+    a2: u32,
+    a3: u32,
     _a4: u32,
     _a5: u32,
     _syscall_subid: u32,
@@ -40,7 +85,16 @@ pub extern "C" fn handle_syscall(
     let r = match syscall_id {
         Syscall::NOP => KResult::Ok(()),
         Syscall::SET_TIMER => handle_set_timer(a0),
-        Syscall::CONSOLE_WRITE => handle_console_write(unsafe { slice::from_raw_parts(a0 as *const u8, a1 as usize) }),
+        Syscall::CONSOLE_WRITE => {
+            handle_console_write(unsafe { slice::from_raw_parts(a0 as *const u8, a1 as usize) })
+        }
+        Syscall::IPC => handle_ipc(
+            a0,
+            a1,
+            unsafe { &mut *(a2 as *mut Message) },
+            IpcFlags::from_u32(a3),
+        ),
+        Syscall::NOTIFY => handle_notify(a0, Notifications::from_u32(a1)),
         _ => KResult::InvalidArg,
     };
     match r {
