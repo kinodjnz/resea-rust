@@ -1,6 +1,6 @@
 use crate::mmio;
 use crate::result::KResult;
-use crate::task::{Message, Notifications, TaskCellOps, TaskPool, TaskRef, TaskState};
+use crate::task::{Message, Notifications, TaskOps, TaskPool, TaskRef, TaskState};
 use core::u32;
 
 #[derive(Clone, Copy)]
@@ -146,7 +146,9 @@ pub fn recv(
         task_pool.task_switch();
 
         let current = task_pool.current();
-        task_pool.update_message(current, |current_message| mmio::memcpy_align4(message, current_message, 1));
+        task_pool.update_message(current, |current_message| {
+            mmio::memcpy_align4(message, current_message, 1)
+        });
     }
 
     KResult::Ok(())

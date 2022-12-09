@@ -63,7 +63,4 @@ impl GetNoarchTask for Cramp32Task {
     fn noarch(&self) -> &NoarchTask {
         &self.noarch_task
     }
-    fn noarch_mut(&mut self) -> &mut NoarchTask {
-        &mut self.noarch_task
-    }
 }
