@@ -48,7 +48,7 @@ impl IpcSrcTask {
 }
 
 pub fn call(
-    task_pool: &mut TaskPool,
+    task_pool: &TaskPool,
     dst_task: TaskRef,
     src_tid: u32,
     message: &mut Message,
@@ -58,7 +58,7 @@ pub fn call(
 }
 
 pub fn send(
-    task_pool: &mut TaskPool,
+    task_pool: &TaskPool,
     dst_task: TaskRef,
     message: &mut Message,
     flags: IpcFlags,
@@ -91,7 +91,7 @@ pub fn send(
 
 /// Resumes a sender task for the `receiver` tasks and updates `receiver->src`
 /// properly.
-fn resume_sender(task_pool: &mut TaskPool, receiver: TaskRef, src_tid: u32) {
+fn resume_sender(task_pool: &TaskPool, receiver: TaskRef, src_tid: u32) {
     if let Some(sender) = task_pool
         .list_for_senders(receiver)
         .iter()
@@ -126,7 +126,7 @@ fn resume_sender(task_pool: &mut TaskPool, receiver: TaskRef, src_tid: u32) {
 }
 
 pub fn recv(
-    task_pool: &mut TaskPool,
+    task_pool: &TaskPool,
     src_tid: u32,
     message: &mut Message,
     flags: IpcFlags,
@@ -155,7 +155,7 @@ pub fn recv(
 }
 
 pub fn notify(
-    task_pool: &mut TaskPool,
+    task_pool: &TaskPool,
     dst_task: TaskRef,
     notifications: Notifications,
 ) -> KResult<()> {

@@ -7,11 +7,9 @@ pub struct ListLink<T: 'static> {
 }
 
 impl<T: 'static> ListLink<T> {
-    pub fn new() -> ListLink<T> {
-        ListLink {
-            next: None.into(),
-            prev: None.into(),
-        }
+    pub fn reset(&self) {
+        self.next.set(None);
+        self.prev.set(None);
     }
 }
 

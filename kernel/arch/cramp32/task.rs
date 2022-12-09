@@ -42,11 +42,9 @@ fn init_stack(tid: u32, pc: usize) -> usize {
 }
 
 impl KArchTask for Cramp32Task {
-    fn arch_task_create(noarch_task: NoarchTask, pc: usize) -> KResult<Cramp32Task> {
-        KResult::Ok(Cramp32Task {
-            stack: init_stack(noarch_task.tid, pc).into(),
-            noarch_task,
-        })
+    fn arch_task_init(tid: u32, task: &Cramp32Task, pc: usize) -> KResult<()> {
+        task.stack.set(init_stack(tid, pc));
+        KResult::Ok(())
     }
 
     fn arch_task_switch(prev: &Cramp32Task, next: &Cramp32Task) {

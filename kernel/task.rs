@@ -32,16 +32,11 @@ static mut TASK_POOL: TaskPool = TaskPool {
 
 trait TaskListOps {
     fn task(&self, tid: u32) -> TaskRef;
-    fn task_mut(&mut self, tid: u32) -> &mut Task;
 }
 
 impl TaskListOps for TaskList {
     fn task(&self, tid: u32) -> &'static Task {
         unsafe { &*(self.get_unchecked(tid as usize) as *const Task) }
-    }
-
-    fn task_mut(&mut self, tid: u32) -> &mut Task {
-        unsafe { self.get_unchecked_mut(tid as usize) }
     }
 }
 
@@ -74,21 +69,21 @@ impl TaskPool {
         list::LinkedList::new(unsafe { self.runqueues.get_unchecked(priority as usize) })
     }
 
-    fn initiate_task(tid: u32, task: &mut Task, ip: usize) -> KResult<()> {
+    fn initiate_task(tid: u32, task: TaskRef, ip: usize) -> KResult<()> {
         if task.noarch().state.get() != TaskState::Unused {
             return KResult::AlreadyExists;
         }
-        *task = Task::create(tid, ip)?;
+        Task::init(tid, task, ip)?;
         KResult::Ok(())
     }
 
-    pub fn create_user_task(&mut self, tid: u32, ip: usize) -> KResult<()> {
-        Self::initiate_task(tid, self.tasks.task_mut(tid), ip)
+    pub fn create_user_task(&self, tid: u32, ip: usize) -> KResult<()> {
+        Self::initiate_task(tid, self.tasks.task(tid), ip)
             .map(|_| self.resume_task(self.tasks.task(tid)))
     }
 
-    pub fn create_idle_task(&mut self) -> KResult<()> {
-        Self::initiate_task(0, self.tasks.task_mut(0), 0).map(|_| {
+    pub fn create_idle_task(&self) -> KResult<()> {
+        Self::initiate_task(0, self.tasks.task(0), 0).map(|_| {
             let task = self.tasks.task(0);
             task.noarch().task_type.set(TaskType::Idle);
             self.current.set(Some(task));
@@ -166,7 +161,7 @@ impl TaskPool {
     }
 
     pub fn update_notifications<F: FnOnce(Notifications) -> Notifications>(
-        &mut self,
+        &self,
         task: TaskRef,
         f: F,
     ) {
@@ -212,10 +207,10 @@ impl TaskPool {
 // }
 
 pub struct NoarchTask {
-    pub tid: u32,
+    tid: Cell<u32>,
     task_type: Cell<TaskType>,
     state: Cell<TaskState>,
-    priority: u32,
+    priority: Cell<u32>,
     quantum: Cell<i32>,
     message: Cell<Message>,
     src_tid: Cell<u32>,
@@ -304,7 +299,7 @@ impl Message {
 }
 
 pub trait KArchTask {
-    fn arch_task_create(task: NoarchTask, pc: usize) -> KResult<Task>;
+    fn arch_task_init(tid: u32, task: TaskRef, pc: usize) -> KResult<()>;
     fn arch_task_switch(prev: &Task, next: &Task);
 }
 
@@ -313,7 +308,7 @@ pub trait GetNoarchTask {
 }
 
 pub trait TaskOps {
-    fn create(tid: u32, ip: usize) -> KResult<Task>;
+    fn init(tid: u32, task: TaskRef, ip: usize) -> KResult<()>;
     fn tid(&self) -> u32;
     fn priority(&self) -> u32;
     fn quantum(&self) -> i32;
@@ -324,31 +319,27 @@ pub trait TaskOps {
 }
 
 impl TaskOps for Task {
-    fn create(tid: u32, ip: usize) -> KResult<Task> {
-        Task::arch_task_create(
-            NoarchTask {
-                tid,
-                task_type: TaskType::User.into(),
-                state: TaskState::Blocked.into(),
-                priority: TASK_PRIORITY_MAX - 1,
-                quantum: 0.into(),
-                message: unsafe { core::mem::zeroed() },
-                notifications: Notifications::none().into(),
-                src_tid: 0.into(),
-                timeout: 0.into(),
-                senders: list::ListLink::new(),
-                runqueue_link: list::ListLink::new(),
-                sender_link: list::ListLink::new(),
-            },
-            ip,
-        )
+    fn init(tid: u32, task: TaskRef, ip: usize) -> KResult<()> {
+        task.noarch().tid.set(tid);
+        task.noarch().task_type.set(TaskType::User);
+        task.noarch().state.set(TaskState::Blocked);
+        task.noarch().priority.set(TASK_PRIORITY_MAX - 1);
+        task.noarch().quantum.set(0);
+        task.noarch().message.set(unsafe { mem::zeroed() });
+        task.noarch().notifications.set(Notifications::none());
+        task.noarch().src_tid.set(0);
+        task.noarch().timeout.set(0);
+        task.noarch().senders.reset();
+        task.noarch().runqueue_link.reset();
+        task.noarch().sender_link.reset();
+        Task::arch_task_init(tid, task, ip)
     }
 
     fn tid(&self) -> u32 {
-        self.noarch().tid
+        self.noarch().tid.get()
     }
     fn priority(&self) -> u32 {
-        self.noarch().priority
+        self.noarch().priority.get()
     }
     fn quantum(&self) -> i32 {
         self.noarch().quantum.get()
@@ -367,8 +358,8 @@ impl TaskOps for Task {
     }
 }
 
-pub fn get_task_pool() -> &'static mut TaskPool {
-    unsafe { &mut TASK_POOL }
+pub fn get_task_pool() -> &'static TaskPool {
+    unsafe { &TASK_POOL }
 }
 
 pub fn handle_timer_irq() {
