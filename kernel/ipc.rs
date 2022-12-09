@@ -146,7 +146,7 @@ pub fn recv(
         task_pool.task_switch();
 
         let current = task_pool.current();
-        mmio::memcpy_align4(message, current.message(), 1);
+        task_pool.update_message(current, |current_message| mmio::memcpy_align4(message, current_message, 1));
     }
 
     KResult::Ok(())

@@ -129,7 +129,7 @@ impl TaskPool {
     }
 
     fn initiate_task(tid: u32, task: &mut Task, ip: usize) -> KResult<()> {
-        if task.noarch().state != TaskState::Unused {
+        if task.noarch().state.get() != TaskState::Unused {
             return KResult::AlreadyExists;
         }
         *task = Task::create(tid, ip)?;
@@ -161,15 +161,11 @@ impl TaskPool {
 
     // Suspends a task. Don't forget to update `task->src` as well!
     pub fn block_task(&mut self, task: TaskRef) {
-        self.tasks.map_mut1(task, |task| {
-            task.noarch_mut().state = TaskState::Blocked;
-        });
+        task.noarch().state.set(TaskState::Blocked);
     }
 
     pub fn resume_task(&mut self, task: TaskRef) {
-        self.tasks.map_mut1(task, |task| {
-            task.noarch_mut().state = TaskState::Runnable;
-        });
+        task.noarch().state.set(TaskState::Runnable);
         self.enqueue_task(task);
     }
 
@@ -208,8 +204,7 @@ impl TaskPool {
 
     pub fn set_current_timeout(&mut self, timeout: u32) -> KResult<()> {
         if let Some(current) = self.current {
-            self.tasks
-                .map_mut1(current, |current| current.noarch_mut().timeout = timeout);
+            current.noarch().timeout.set(timeout);
             KResult::Ok(())
         } else {
             KResult::NotReady
@@ -217,8 +212,7 @@ impl TaskPool {
     }
 
     pub fn set_src_tid(&mut self, task: TaskRef, src_tid: u32) {
-        self.tasks
-            .map_mut1(task, |task| task.noarch_mut().src_tid = src_tid);
+        task.noarch().src_tid.set(src_tid);
     }
 
     pub fn list_for_senders(
@@ -238,9 +232,7 @@ impl TaskPool {
         task: TaskRef,
         f: F,
     ) {
-        self.tasks.map_mut1(task, |task| {
-            task.noarch_mut().notifications = f(task.noarch().notifications)
-        });
+        task.noarch().notifications.update(|n| f(n));
     }
 
     pub fn lookup_task(&self, tid: u32) -> KResult<TaskRef> {
@@ -257,8 +249,7 @@ impl TaskPool {
     }
 
     pub fn update_message<F: FnOnce(&mut Message)>(&mut self, task: TaskRef, f: F) {
-        self.tasks
-            .map_mut1(task, |task| f(&mut task.noarch_mut().message));
+        f(unsafe { &mut *task.noarch().message.as_ptr() })
     }
 }
 
@@ -285,13 +276,13 @@ impl TaskPool {
 pub struct NoarchTask {
     pub tid: u32,
     task_type: TaskType,
-    state: TaskState,
+    state: Cell<TaskState>,
     priority: u32,
     quantum: Cell<i32>,
-    message: Message,
-    src_tid: u32,
-    notifications: Notifications,
-    timeout: u32,
+    message: Cell<Message>,
+    src_tid: Cell<u32>,
+    notifications: Cell<Notifications>,
+    timeout: Cell<u32>,
     senders: UnsafeCell<list::ListLink<Task>>,
     runqueue_link: list::ListLink<Task>,
     sender_link: list::ListLink<Task>,
@@ -394,13 +385,13 @@ impl TaskOps for Task {
             NoarchTask {
                 tid,
                 task_type: TaskType::User,
-                state: TaskState::Blocked,
+                state: TaskState::Blocked.into(),
                 priority: TASK_PRIORITY_MAX - 1,
                 quantum: 0.into(),
                 message: unsafe { core::mem::zeroed() },
-                notifications: Notifications::none(),
-                src_tid: 0,
-                timeout: 0,
+                notifications: Notifications::none().into(),
+                src_tid: 0.into(),
+                timeout: 0.into(),
                 senders: list::ListLink::new().into(),
                 runqueue_link: list::ListLink::new(),
                 sender_link: list::ListLink::new(),
@@ -414,7 +405,6 @@ pub trait TaskCellOps {
     fn tid(&self) -> u32;
     fn priority(&self) -> u32;
     fn quantum(&self) -> i32;
-    fn message(&self) -> &Message;
     fn src_tid(&self) -> u32;
     fn task_type(&self) -> TaskType;
     fn state(&self) -> TaskState;
@@ -435,23 +425,17 @@ impl TaskCellOps for TaskCell {
     fn quantum(&self) -> i32 {
         self.noarch().quantum.get()
     }
-    fn message(&self) -> &Message {
-        &self.noarch().message
-    }
     fn src_tid(&self) -> u32 {
-        self.noarch().src_tid
+        self.noarch().src_tid.get()
     }
     fn task_type(&self) -> TaskType {
         self.noarch().task_type
     }
     fn state(&self) -> TaskState {
-        self.noarch().state
+        self.noarch().state.get()
     }
-    // fn message(&self) -> &Message {
-    //     &self.noarch().message
-    // }
     fn notifications(&self) -> Notifications {
-        self.noarch().notifications
+        self.noarch().notifications.get()
     }
 }
 
