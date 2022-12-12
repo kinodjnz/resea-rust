@@ -4,7 +4,7 @@ use crate::syscall;
 use crate::task;
 
 pub fn kmain() -> ! {
-    printk!(b"\nBooting Resea v0.0.1\n");
+    printk!(b"\nBooting Resea/Rust v0.0.1\n");
     cycle::init();
     if task::get_task_pool()
         .create_user_task(task::INIT_TID, (init_task as *const ()) as usize)

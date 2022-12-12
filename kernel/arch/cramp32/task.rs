@@ -16,7 +16,7 @@ static mut EXCEPTION_STACKS: ExceptionStack = ExceptionStack {
     stack: [[0; STACK_COUNT]; config::NUM_TASKS as usize],
 };
 
-#[repr(align(16))]
+#[repr(align(64))]
 pub struct Cramp32Task {
     stack: Cell<usize>,
     noarch_task: NoarchTask,
