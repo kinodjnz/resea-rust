@@ -280,9 +280,9 @@ impl MessageType {
 }
 
 pub struct Message {
-    message_type: MessageType,
-    src_tid: u32,
-    raw: [u8; 24],
+    pub message_type: MessageType,
+    pub src_tid: u32,
+    pub raw: [u8; 24],
 }
 
 impl Message {

@@ -16,6 +16,9 @@ impl IpcFlags {
     pub fn from_u32(flags: u32) -> IpcFlags {
         IpcFlags(flags as u8)
     }
+    pub fn as_u32(&self) -> u32 {
+        self.0 as u32
+    }
 
     pub fn send() -> IpcFlags {
         IpcFlags(Self::SEND)

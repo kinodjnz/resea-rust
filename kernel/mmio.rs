@@ -54,9 +54,10 @@ pub fn memcpy_align4<T>(dst: *mut T, src: *const T, count: usize) {
         let mut dst = dst as *mut u32;
         let mut src = src as *const u32;
         while src < q {
-            writev(dst, *src);
-            dst = dst.add(1);
+            let x = *src;
             src = src.add(1);
+            writev(dst, x);
+            dst = dst.add(1);
         }
     }
 }

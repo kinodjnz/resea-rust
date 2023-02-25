@@ -4,6 +4,7 @@ use crate::ipc::{self, IpcFlags};
 use crate::result::KResult;
 use crate::task::{self, Message, Notifications};
 use core::arch::asm;
+use core::mem;
 use core::slice;
 
 pub struct Syscall;
@@ -157,6 +158,20 @@ pub fn syscall2(syscall_id: u32, mut a0: u32, mut a1: u32) -> KResult<()> {
 }
 
 #[allow(unused)]
+pub fn syscall4(
+    syscall_id: u32,
+    mut a0: u32,
+    mut a1: u32,
+    mut a2: u32,
+    mut a3: u32,
+) -> KResult<()> {
+    unsafe {
+        asm!("ecall", inout("a0") a0, inout("a1") a1, inout("a2") a2, inout("a3") a3, in("a7") syscall_id);
+        to_unit_result(a0)
+    }
+}
+
+#[allow(unused)]
 pub fn nop() -> KResult<()> {
     syscall0(Syscall::NOP)
 }
@@ -164,4 +179,27 @@ pub fn nop() -> KResult<()> {
 #[allow(unused)]
 pub fn console_write(s: &[u8]) -> KResult<()> {
     syscall2(Syscall::CONSOLE_WRITE, s.as_ptr() as u32, s.len() as u32)
+}
+
+#[allow(unused)]
+pub fn ipc_recv(dst_tid: u32) -> KResult<Message> {
+    let mut message: Message = unsafe { mem::MaybeUninit::zeroed().assume_init() };
+    syscall4(
+        Syscall::IPC,
+        dst_tid,
+        0,
+        unsafe { mem::transmute::<*mut Message, u32>(&mut message as *mut Message) },
+        IpcFlags::recv().as_u32(),
+    ).map(|_| message)
+}
+
+#[allow(unused)]
+pub fn ipc_send(dst_tid: u32, message: &Message) -> KResult<()> {
+    syscall4(
+        Syscall::IPC,
+        dst_tid,
+        0,
+        unsafe { mem::transmute::<*const Message, u32>(message as *const Message) },
+        IpcFlags::send().as_u32(),
+    )
 }
