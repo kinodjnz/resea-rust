@@ -1,7 +1,7 @@
-[package]
-name = "resea-rust"
-version = "0.1.0"
-edition = "2021"
+[workspace]
+members = [
+    "kernel",
+]
 
 [profile.release]
 opt-level = "s"
@@ -10,13 +10,3 @@ overflow-checks = false
 lto = true
 codegen-units = 1
 #panic = "abort"
-
-[lib]
-crate-type = ["staticlib"]
-name = "kernel"
-path = "kernel/lib.rs"
-
-[features]
-cramp32 = []
-
-[dependencies]

@@ -6,9 +6,9 @@ TARGET = $(ARCH)imc-unknown-none-elf
 
 LLVM_PATH = ../../rust-lang/rust/build/aarch64-apple-darwin/llvm/bin
 
-ARCH_DIR = kernel/arch/$(ARCH)
+ARCH_DIR = kernel/src/arch/$(ARCH)
 
-KERNEL_SRCS = $(wildcard kernel/*.rs $(ARCH_DIR)/*.rs)
+KERNEL_SRCS = $(wildcard kernel/src/*.rs $(ARCH_DIR)/*.rs)
 KERNEL_ASM_SRCS = $(wildcard $(ARCH_DIR)/*.S)
 KERNEL_LD = $(ARCH_DIR)/kernel.ld
 
