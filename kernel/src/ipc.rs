@@ -1,47 +1,8 @@
-use crate::mmio;
-use crate::result::KResult;
-use crate::task::{Message, Notifications, TaskOps, TaskPool, TaskRef, TaskState};
+use crate::task::{TaskPool, TaskRef, TaskState, TaskOps, NotificationMessage};
+use klib::mmio;
+use klib::result::KResult;
+use klib::ipc::{IpcFlags, Message, Notifications};
 use core::u32;
-
-#[derive(Clone, Copy)]
-pub struct IpcFlags(u8);
-
-#[allow(unused)]
-impl IpcFlags {
-    const SEND: u8 = 1 << 0;
-    const RECV: u8 = 1 << 1;
-    const NOBLOCK: u8 = 1 << 2;
-    const KERNEL: u8 = 1 << 3; // Internally used by kernel.
-
-    pub fn from_u32(flags: u32) -> IpcFlags {
-        IpcFlags(flags as u8)
-    }
-    pub fn as_u32(&self) -> u32 {
-        self.0 as u32
-    }
-
-    pub fn send() -> IpcFlags {
-        IpcFlags(Self::SEND)
-    }
-    pub fn recv() -> IpcFlags {
-        IpcFlags(Self::RECV)
-    }
-    pub fn call() -> IpcFlags {
-        IpcFlags(Self::SEND | Self::RECV)
-    }
-    pub fn is_send(&self) -> bool {
-        self.0 & Self::SEND != 0
-    }
-    pub fn is_recv(&self) -> bool {
-        self.0 & Self::RECV != 0
-    }
-    pub fn is_noblock(&self) -> bool {
-        self.0 & Self::NOBLOCK != 0
-    }
-    pub fn is_kernel(&self) -> bool {
-        self.0 & Self::KERNEL != 0
-    }
-}
 
 pub struct IpcSrcTask;
 

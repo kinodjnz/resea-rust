@@ -1,6 +1,8 @@
 [workspace]
 members = [
     "kernel",
+    "init",
+    "klib",
 ]
 
 [profile.release]

@@ -1,4 +1,4 @@
-use super::mmio::readv;
+use crate::mmio::readv;
 use core::arch::asm;
 
 const REG_CONFIG_CLOCK_HZ: *mut u32 = 0x4000_0004 as *mut u32;

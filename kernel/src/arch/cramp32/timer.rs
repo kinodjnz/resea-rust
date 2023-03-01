@@ -1,4 +1,4 @@
-use crate::mmio;
+use klib::mmio;
 
 const REG_MTIMER_MTIME_LO: *mut u32 = 0x3000_2000 as *mut u32;
 const REG_MTIMER_MTIME_HI: *mut u32 = 0x3000_2004 as *mut u32;

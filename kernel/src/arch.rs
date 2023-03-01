@@ -1,3 +1,4 @@
+#[cfg(feature = "cramp32")]
 pub mod cramp32;
 
 pub trait KArchConsole {

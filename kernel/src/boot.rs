@@ -1,9 +1,10 @@
-use crate::cycle;
 use crate::macros::*;
 use crate::syscall;
 use crate::task;
-use crate::task::{Message, MessageType};
-use crate::result::KResult;
+use klib::ipc::{Message, MessageType};
+use klib::result::KResult;
+use klib::cycle;
+use init::init::init_task;
 use core::ptr;
 
 pub fn kmain() -> ! {
@@ -31,14 +32,6 @@ pub fn kmain() -> ! {
         printk!(b"create idle task failed\n");
     }
     loop {}
-}
-
-pub fn init_task() -> ! {
-    printk!(b"init task started\n");
-    loop {
-        printk!(b"Hello, Resea\n");
-        cycle::wait(cycle::clock_hz());
-    }
 }
 
 struct UserMessage<T> {

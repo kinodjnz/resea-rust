@@ -1,4 +1,4 @@
-use crate::mmio::{readv, writev};
+use klib::mmio::{readv, writev};
 
 const REG_UART_STATUS: *mut u32 = 0x3000_1000 as *mut u32;
 const REG_UART_DATA: *mut u32 = 0x3000_1004 as *mut u32;

@@ -1,5 +1,5 @@
 use crate::arch::KArchIrq;
-use crate::mmio;
+use klib::mmio;
 
 const REG_INTERRUPT_ENABLE: *mut u32 = 0x3000_4000 as *mut u32;
 //const REG_INTERRUPT_STATUS: *mut u32 = 0x3000_4004 as *mut u32;

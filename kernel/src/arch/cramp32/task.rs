@@ -1,7 +1,7 @@
 use crate::config;
-use crate::mmio;
-use crate::result::KResult;
 use crate::task::{GetNoarchTask, KArchTask, NoarchTask};
+use klib::result::KResult;
+use klib::mmio;
 use core::cell::Cell;
 
 const STACK_SIZE: usize = 4096;

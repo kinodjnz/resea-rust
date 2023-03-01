@@ -1,12 +1,12 @@
 pub use crate::arch::Task;
 use crate::config;
 use crate::list;
-use crate::mmio;
-use crate::result::KResult;
 use crate::zeroed_array;
+use klib::mmio;
+use klib::result::KResult;
+use klib::ipc::{MessageType, Message, Notifications};
 use core::cell::Cell;
 use core::mem;
-use core::ops::BitOr;
 
 const TASK_PRIORITY_MAX: u32 = 8;
 const TASK_TIME_SLICE: i32 = 10; // should meet timer intr cycle
@@ -234,59 +234,12 @@ pub enum TaskType {
     User,
 }
 
-#[derive(Clone, Copy)]
-pub struct Notifications(u8);
-
-#[allow(unused)]
-impl Notifications {
-    const TIMER: u8 = 1 << 0;
-    const IRQ: u8 = 1 << 1;
-    const ABORTED: u8 = 1 << 2;
-    const ASYNC: u8 = 1 << 3;
-
-    pub fn from_u32(n: u32) -> Notifications {
-        Notifications(n as u8)
-    }
-
-    pub fn aborted() -> Notifications {
-        Notifications(Self::ABORTED)
-    }
-    pub fn clear(&self, notifications: Notifications) -> Notifications {
-        Notifications(self.0 & !notifications.0)
-    }
-    pub fn none() -> Notifications {
-        Notifications(0)
-    }
-    pub fn is_aborted(&self) -> bool {
-        self.0 & Self::ABORTED != 0
-    }
-    pub fn exists(&self) -> bool {
-        self.0 != 0
-    }
+pub trait NotificationMessage {
+    fn set_notification(&mut self, notifications: Notifications);
 }
 
-impl BitOr for Notifications {
-    type Output = Self;
-
-    fn bitor(self, rhs: Self) -> Self::Output {
-        Self(self.0 | rhs.0)
-    }
-}
-
-pub struct MessageType(pub u32);
-
-impl MessageType {
-    const NOTIFICATIONS: MessageType = MessageType(1);
-}
-
-pub struct Message {
-    pub message_type: MessageType,
-    pub src_tid: u32,
-    pub raw: [u8; 24],
-}
-
-impl Message {
-    pub fn set_notification(&mut self, notifications: Notifications) {
+impl NotificationMessage for Message {
+    fn set_notification(&mut self, notifications: Notifications) {
         self.message_type = MessageType::NOTIFICATIONS;
         self.src_tid = KERNEL_TID;
         mmio::mzero_array(&mut self.raw);

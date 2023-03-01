@@ -1,4 +1,4 @@
-use crate::macros::*;
+// use crate::macros::*;
 use core::convert;
 use core::mem::transmute_copy;
 use core::ops::{self, ControlFlow};
@@ -54,9 +54,9 @@ impl<T> KResult<T> {
     }
 
     pub fn err_from_u32(e: u32) -> Self {
-        if e == 0 {
-            kpanic!(b"err_from_u32 called for ok");
-        }
+        // if e == 0 {
+        //     kpanic!(b"err_from_u32 called for ok");
+        // }
         unsafe { transmute_copy(&e) }
     }
 

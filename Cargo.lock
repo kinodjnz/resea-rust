@@ -3,5 +3,20 @@
 version = 3
 
 [[package]]
+name = "init"
+version = "0.1.0"
+dependencies = [
+ "klib",
+]
+
+[[package]]
+name = "klib"
+version = "0.1.0"
+
+[[package]]
 name = "resea-rust"
 version = "0.1.0"
+dependencies = [
+ "init",
+ "klib",
+]

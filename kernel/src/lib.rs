@@ -7,10 +7,8 @@
 #[macro_use]
 mod macros;
 
-mod cycle;
 //mod gpio;
 //mod loader;
-mod mmio;
 //mod sdc;
 mod arch;
 mod boot;
@@ -19,7 +17,6 @@ mod console;
 mod fmt;
 mod ipc;
 mod list;
-mod result;
 mod syscall;
 mod task;
 

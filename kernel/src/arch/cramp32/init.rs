@@ -2,7 +2,7 @@ use super::irq;
 use super::macros::*;
 use super::timer;
 use crate::boot::kmain;
-use crate::mmio;
+use klib::mmio;
 
 fn init_bss() {
     extern "C" {
