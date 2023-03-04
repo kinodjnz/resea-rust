@@ -11,5 +11,4 @@ name = "kernel"
 cramp32 = []
 
 [dependencies]
-init = { path = "../init" }
 klib = { path = "../klib" }

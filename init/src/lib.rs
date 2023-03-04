@@ -7,3 +7,11 @@ extern crate klib;
 
 pub mod init;
 mod syscall;
+
+use core::panic::PanicInfo;
+#[panic_handler]
+#[no_mangle]
+#[link_section = ".panic_info"]
+fn panic(_info: &PanicInfo) -> ! {
+    loop {}
+}

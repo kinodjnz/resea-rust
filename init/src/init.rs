@@ -6,7 +6,8 @@ use klib::ipc::{Message, MessageType};
 use klib::macros::*;
 use klib::result::KResult;
 
-pub fn init_task() -> ! {
+#[no_mangle]
+pub extern "C" fn init_task() -> ! {
     cycle::init();
     syscall::console_write(b"init task started\n");
     let r = syscall::create_task(2, (console_task as *const ()) as usize);
