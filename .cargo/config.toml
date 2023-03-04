@@ -1,3 +1,4 @@
 [build]
 target = "cramp32imc-unknown-none-elf"
 # target = "riscv32imc-unknown-none-elf"
+rustflags = ["-C", "relocation-model=pic"]
