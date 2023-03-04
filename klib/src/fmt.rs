@@ -1,4 +1,5 @@
 use core::mem::MaybeUninit;
+use core::ptr;
 
 pub struct HNil;
 
@@ -35,7 +36,7 @@ where
     fn format(&self, writer: &mut dyn Write, format: &[u8]) {
         let mut i = 0;
         while i < format.len() {
-            let ch = format[i];
+            let ch = unsafe { *format.get_unchecked(i) };
             i += 1;
             if ch == b'{' {
                 break;
@@ -43,11 +44,13 @@ where
             writer.write_char(ch);
         }
         while i < format.len() {
-            let ch = format[i];
+            let ch = unsafe { *format.get_unchecked(i) };
             i += 1;
             if ch == b'}' {
                 self.head.fmt(writer);
-                self.tail.format(writer, &format[i..]);
+                self.tail.format(writer, unsafe {
+                    &*ptr::slice_from_raw_parts(format.get_unchecked(i), format.len() - i)
+                });
                 return;
             }
         }

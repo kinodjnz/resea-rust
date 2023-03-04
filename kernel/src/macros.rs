@@ -1,16 +1,6 @@
 pub use crate::console::ConsoleWriter;
-pub use crate::fmt::*;
 pub use core::mem;
-
-#[macro_export]
-macro_rules! make_args {
-    ($arg1:expr $(,$args:expr)*) => {
-        HCons { head: $arg1, tail: make_args!($($args),*) }
-    };
-    () => {
-        HNil
-    };
-}
+pub use klib::macros::*;
 
 #[macro_export]
 macro_rules! printk {

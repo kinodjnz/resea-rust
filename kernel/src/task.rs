@@ -2,11 +2,11 @@ pub use crate::arch::Task;
 use crate::config;
 use crate::list;
 use crate::zeroed_array;
-use klib::mmio;
-use klib::result::KResult;
-use klib::ipc::{MessageType, Message, Notifications};
 use core::cell::Cell;
 use core::mem;
+use klib::ipc::{Message, MessageType, Notifications};
+use klib::mmio;
+use klib::result::KResult;
 
 const TASK_PRIORITY_MAX: u32 = 8;
 const TASK_TIME_SLICE: i32 = 10; // should meet timer intr cycle
@@ -69,16 +69,19 @@ impl TaskPool {
         list::LinkedList::new(unsafe { self.runqueues.get_unchecked(priority as usize) })
     }
 
-    fn initiate_task(tid: u32, task: TaskRef, ip: usize) -> KResult<()> {
+    fn initiate_task(tid: u32, task: TaskRef, pc: usize) -> KResult<()> {
         if task.noarch().state.get() != TaskState::Unused {
             return KResult::AlreadyExists;
         }
-        Task::init(tid, task, ip)?;
+        Task::init(tid, task, pc)?;
         KResult::Ok(())
     }
 
-    pub fn create_user_task(&self, tid: u32, ip: usize) -> KResult<()> {
-        Self::initiate_task(tid, self.tasks.task(tid), ip)
+    pub fn create_user_task(&self, tid: u32, pc: usize) -> KResult<()> {
+        if tid > config::NUM_TASKS {
+            return KResult::InvalidArg;
+        }
+        Self::initiate_task(tid, self.tasks.task(tid), pc)
             .map(|_| self.resume_task(self.tasks.task(tid)))
     }
 
@@ -261,7 +264,7 @@ pub trait GetNoarchTask {
 }
 
 pub trait TaskOps {
-    fn init(tid: u32, task: TaskRef, ip: usize) -> KResult<()>;
+    fn init(tid: u32, task: TaskRef, pc: usize) -> KResult<()>;
     fn tid(&self) -> u32;
     fn priority(&self) -> u32;
     fn quantum(&self) -> i32;
@@ -272,7 +275,7 @@ pub trait TaskOps {
 }
 
 impl TaskOps for Task {
-    fn init(tid: u32, task: TaskRef, ip: usize) -> KResult<()> {
+    fn init(tid: u32, task: TaskRef, pc: usize) -> KResult<()> {
         task.noarch().tid.set(tid);
         task.noarch().task_type.set(TaskType::User);
         task.noarch().state.set(TaskState::Blocked);
@@ -285,7 +288,7 @@ impl TaskOps for Task {
         task.noarch().senders.reset();
         task.noarch().runqueue_link.reset();
         task.noarch().sender_link.reset();
-        Task::arch_task_init(tid, task, ip)
+        Task::arch_task_init(tid, task, pc)
     }
 
     fn tid(&self) -> u32 {

@@ -1,7 +1,7 @@
-use klib::result::KResult;
-use klib::ipc::{IpcFlags, Message};
 use core::arch::asm;
 use core::mem;
+use klib::ipc::{IpcFlags, Message};
+use klib::result::KResult;
 
 struct Syscall;
 
@@ -101,14 +101,15 @@ pub fn console_write(s: &[u8]) -> KResult<()> {
 
 #[allow(unused)]
 pub fn ipc_recv(dst_tid: u32) -> KResult<Message> {
-    let mut message: Message = unsafe { mem::MaybeUninit::zeroed().assume_init() };
+    let mut message: mem::MaybeUninit<Message> = unsafe { mem::MaybeUninit::uninit() };
     syscall4(
         Syscall::IPC,
         dst_tid,
         0,
-        unsafe { mem::transmute::<*mut Message, u32>(&mut message as *mut Message) },
+        unsafe { mem::transmute(<*mut _>::from(&mut message)) },
         IpcFlags::recv().as_u32(),
-    ).map(|_| message)
+    )
+    .map(|_| unsafe { message.assume_init() })
 }
 
 #[allow(unused)]
@@ -120,4 +121,9 @@ pub fn ipc_send(dst_tid: u32, message: &Message) -> KResult<()> {
         unsafe { mem::transmute::<*const Message, u32>(message as *const Message) },
         IpcFlags::send().as_u32(),
     )
+}
+
+#[allow(unused)]
+pub fn create_task(tid: u32, pc: usize) -> KResult<()> {
+    syscall2(Syscall::CREATE_TASK, tid, pc as u32)
 }

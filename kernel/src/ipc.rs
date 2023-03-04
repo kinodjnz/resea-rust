@@ -1,8 +1,8 @@
-use crate::task::{TaskPool, TaskRef, TaskState, TaskOps, NotificationMessage};
+use crate::task::{NotificationMessage, TaskOps, TaskPool, TaskRef, TaskState};
+use core::u32;
+use klib::ipc::{IpcFlags, Message, Notifications};
 use klib::mmio;
 use klib::result::KResult;
-use klib::ipc::{IpcFlags, Message, Notifications};
-use core::u32;
 
 pub struct IpcSrcTask;
 
@@ -11,6 +11,7 @@ impl IpcSrcTask {
     const DENY: u32 = u32::MAX;
 }
 
+#[allow(unused)]
 pub fn call(
     task_pool: &TaskPool,
     dst_task: TaskRef,

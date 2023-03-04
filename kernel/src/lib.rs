@@ -5,6 +5,9 @@
 #![feature(cell_update)]
 
 #[macro_use]
+extern crate klib;
+
+#[macro_use]
 mod macros;
 
 //mod gpio;
@@ -14,7 +17,6 @@ mod arch;
 mod boot;
 mod config;
 mod console;
-mod fmt;
 mod ipc;
 mod list;
 mod syscall;

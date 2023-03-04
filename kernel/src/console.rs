@@ -1,5 +1,5 @@
 use crate::arch::*;
-use crate::fmt::Write;
+use klib::fmt::Write;
 
 pub struct Console;
 

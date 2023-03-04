@@ -3,7 +3,7 @@ use core::convert;
 use core::mem::transmute_copy;
 use core::ops::{self, ControlFlow};
 
-#[repr(align(4))]
+#[repr(u32)]
 #[allow(dead_code)]
 pub enum KResult<T> {
     Ok(T),
@@ -50,14 +50,14 @@ impl<T> KResult<T> {
     }
 
     pub fn err_as_u32(&self) -> u32 {
-        unsafe { transmute_copy(self) }
+        unsafe { *<*const _>::from(self).cast::<u32>() }
     }
 
     pub fn err_from_u32(e: u32) -> Self {
         // if e == 0 {
         //     kpanic!(b"err_from_u32 called for ok");
         // }
-        unsafe { transmute_copy(&e) }
+        unsafe { transmute_copy(&*(<*const _>::from(&e).cast::<Self>())) }
     }
 
     pub fn map<U, F: FnOnce(T) -> U>(self, op: F) -> KResult<U> {
