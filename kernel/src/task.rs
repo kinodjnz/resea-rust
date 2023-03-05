@@ -1,5 +1,6 @@
 pub use crate::arch::Task;
 use crate::config;
+use crate::ipc;
 use crate::list;
 use crate::zeroed_array;
 use core::cell::Cell;
@@ -57,9 +58,12 @@ impl list::LinkAdapter<Task, SendersTag> for Task {
 }
 
 impl TaskPool {
-    // fn active_iter(&self) -> ActiveIter {
-    //     ActiveIter { tid: 0, task_pool: self }
-    // }
+    fn active_tasks(&self) -> ActiveTasks {
+        ActiveTasks {
+            tid: 0,
+            task_pool: self,
+        }
+    }
 
     pub fn current(&self) -> TaskRef {
         unsafe { self.current.get().unwrap_unchecked() }
@@ -189,25 +193,29 @@ impl TaskPool {
     }
 }
 
-// struct ActiveIter<'a> {
-//     tid: u32,
-//     task_pool: &'a TaskPool<'t>,
-// }
+struct ActiveTasks<'a> {
+    tid: u32,
+    task_pool: &'a TaskPool,
+}
 
-// impl<'a> Iterator for ActiveIter<'a> {
-//     type Item = &'a Task;
+impl<'a> Iterator for ActiveTasks<'a> {
+    type Item = &'a Task;
 
-//     fn next(&mut self) -> Option<Self::Item> {
-//         while self.tid < config::NUM_TASKS && self.task_pool.get_task(self.tid).noarch().state == TaskState::Unused {
-//             self.tid += 1;
-//         }
-//         if self.tid >= config::NUM_TASKS {
-//             None
-//         } else {
-//             Some(self.task_pool.get_task(self.tid))
-//         }
-//     }
-// }
+    fn next(&mut self) -> Option<Self::Item> {
+        while self.tid < config::NUM_TASKS
+            && self.task_pool.tasks.task(self.tid).state() == TaskState::Unused
+        {
+            self.tid += 1;
+        }
+        if self.tid >= config::NUM_TASKS {
+            None
+        } else {
+            let tid = self.tid;
+            self.tid += 1;
+            Some(self.task_pool.tasks.task(tid))
+        }
+    }
+}
 
 pub struct NoarchTask {
     tid: Cell<u32>,
@@ -268,6 +276,7 @@ pub trait TaskOps {
     fn tid(&self) -> u32;
     fn priority(&self) -> u32;
     fn quantum(&self) -> i32;
+    fn timeout(&self) -> u32;
     fn src_tid(&self) -> u32;
     fn task_type(&self) -> TaskType;
     fn state(&self) -> TaskState;
@@ -300,6 +309,9 @@ impl TaskOps for Task {
     fn quantum(&self) -> i32 {
         self.noarch().quantum.get()
     }
+    fn timeout(&self) -> u32 {
+        self.noarch().timeout.get()
+    }
     fn src_tid(&self) -> u32 {
         self.noarch().src_tid.get()
     }
@@ -321,9 +333,21 @@ pub fn get_task_pool() -> &'static TaskPool {
 pub fn handle_timer_irq() {
     let task_pool = get_task_pool();
 
+    let resumed_by_timeout = task_pool
+        .active_tasks()
+        .filter(|task| task.timeout() > 0)
+        .filter(|task| {
+            let next_timeout = task.timeout() - 1;
+            task.noarch().timeout.set(next_timeout);
+            next_timeout == 0
+        })
+        .map(|task| ipc::notify(task_pool, task, Notifications::timer()))
+        .count()
+        > 0;
+
     if let Some(current) = task_pool.current.get() {
         current.noarch().quantum.update(|quantum| quantum - 1);
-        if current.quantum() < 0 {
+        if current.quantum() < 0 || resumed_by_timeout {
             task_pool.task_switch();
         }
     }

@@ -66,6 +66,9 @@ impl Notifications {
         Notifications(n as u8)
     }
 
+    pub fn timer() -> Notifications {
+        Notifications(Self::TIMER)
+    }
     pub fn aborted() -> Notifications {
         Notifications(Self::ABORTED)
     }
