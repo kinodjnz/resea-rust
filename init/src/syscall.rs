@@ -1,6 +1,7 @@
 use core::arch::asm;
 use core::mem;
 use klib::ipc::{IpcFlags, Message};
+use klib::mmio;
 use klib::result::KResult;
 
 struct Syscall;
@@ -100,12 +101,12 @@ pub fn console_write(s: &[u8]) -> KResult<()> {
 }
 
 #[allow(unused)]
-pub fn ipc_recv(dst_tid: u32) -> KResult<Message> {
+pub fn ipc_recv(src_tid: u32) -> KResult<Message> {
     let mut message: mem::MaybeUninit<Message> = unsafe { mem::MaybeUninit::uninit() };
     syscall4(
         Syscall::IPC,
-        dst_tid,
         0,
+        src_tid,
         unsafe { mem::transmute(<*mut _>::from(&mut message)) },
         IpcFlags::recv().as_u32(),
     )
@@ -118,9 +119,24 @@ pub fn ipc_send(dst_tid: u32, message: &Message) -> KResult<()> {
         Syscall::IPC,
         dst_tid,
         0,
-        unsafe { mem::transmute::<*const Message, u32>(message as *const Message) },
+        unsafe { mem::transmute(<*const _>::from(message)) },
         IpcFlags::send().as_u32(),
     )
+}
+
+#[allow(unused)]
+pub fn ipc_call(dst_tid: u32, message: &Message) -> KResult<Message> {
+    let mut ipc_message: mem::MaybeUninit<Message> = unsafe { mem::MaybeUninit::uninit() };
+    mmio::memcpy_align4(ipc_message.as_mut_ptr(), message, 1);
+    let mut ipc_message = unsafe { ipc_message.assume_init() };
+    syscall4(
+        Syscall::IPC,
+        dst_tid,
+        dst_tid,
+        unsafe { mem::transmute(<*mut _>::from(&mut ipc_message)) },
+        IpcFlags::call().as_u32(),
+    )
+    .map(|_| ipc_message)
 }
 
 #[allow(unused)]

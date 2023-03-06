@@ -57,7 +57,13 @@ fn handle_ipc(dst_tid: u32, src_tid: u32, message: &mut Message, flags: IpcFlags
         KResult::Ok(())
     };
     if flags.is_recv() {
-        result.and_then(|_| ipc::recv(task_pool, src_tid, message, flags))
+        let recv_flags = if flags.is_send() {
+            // In case of nonblocking ipc call, the destination should respond soon.
+            flags.clear_noblock()
+        } else {
+            flags
+        };
+        result.and_then(|_| ipc::recv(task_pool, src_tid, message, recv_flags))
     } else {
         result
     }

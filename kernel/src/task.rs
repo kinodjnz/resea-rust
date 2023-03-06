@@ -335,7 +335,7 @@ pub fn handle_timer_irq() {
 
     let resumed_by_timeout = task_pool
         .active_tasks()
-        .filter(|task| task.timeout() > 0)
+        .filter(|task: &&Task| task.timeout() > 0)
         .filter(|task| {
             let next_timeout = task.timeout() - 1;
             task.noarch().timeout.set(next_timeout);

@@ -11,17 +11,6 @@ impl IpcSrcTask {
     const DENY: u32 = u32::MAX;
 }
 
-#[allow(unused)]
-pub fn call(
-    task_pool: &TaskPool,
-    dst_task: TaskRef,
-    src_tid: u32,
-    message: &mut Message,
-    flags: IpcFlags,
-) -> KResult<()> {
-    send(task_pool, dst_task, message, flags).and_then(|_| recv(task_pool, src_tid, message, flags))
-}
-
 pub fn send(
     task_pool: &TaskPool,
     dst_task: TaskRef,

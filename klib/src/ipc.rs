@@ -38,6 +38,9 @@ impl IpcFlags {
     pub fn is_kernel(&self) -> bool {
         self.0 & Self::KERNEL != 0
     }
+    pub fn clear_noblock(&self) -> IpcFlags {
+        IpcFlags(self.0 & !Self::NOBLOCK)
+    }
 }
 
 pub struct MessageType(pub u32);
