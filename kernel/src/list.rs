@@ -2,8 +2,8 @@ use core::cell::Cell;
 use core::marker::PhantomData;
 
 pub struct ListLink<T: 'static> {
-    next: Cell<Option<&'static T>>,
-    prev: Cell<Option<&'static T>>,
+    next: Cell<Option<&'static ListLink<T>>>,
+    prev: Cell<Option<&'static ListLink<T>>>,
 }
 
 impl<T: 'static> ListLink<T> {
@@ -13,8 +13,13 @@ impl<T: 'static> ListLink<T> {
     }
 }
 
-pub trait LinkAdapter<T, LinkTag> {
-    fn link(&self) -> &ListLink<T>;
+pub trait LinkAdapter<LinkTag> {
+    fn link(&self) -> &ListLink<Self>
+    where
+        Self: Sized;
+    fn from_link(link: &ListLink<Self>) -> &Self
+    where
+        Self: Sized;
 }
 
 pub struct LinkedList<'a, T: 'static, LinkTag> {
@@ -22,7 +27,7 @@ pub struct LinkedList<'a, T: 'static, LinkTag> {
     phantom_tag: PhantomData<LinkTag>,
 }
 
-impl<'a, T: LinkAdapter<T, LinkTag>, LinkTag: 'a> LinkedList<'a, T, LinkTag> {
+impl<'a, T: LinkAdapter<LinkTag>, LinkTag: 'a> LinkedList<'a, T, LinkTag> {
     pub fn new(link_start: &'a ListLink<T>) -> Self {
         LinkedList {
             link_start,
@@ -34,30 +39,30 @@ impl<'a, T: LinkAdapter<T, LinkTag>, LinkTag: 'a> LinkedList<'a, T, LinkTag> {
         if let Some(prev) = self.link_start.prev.get() {
             elem.link().next.set(None);
             elem.link().prev.set(Some(prev));
-            prev.link().next.set(Some(elem));
-            self.link_start.prev.set(Some(elem));
+            prev.next.set(Some(elem.link()));
+            self.link_start.prev.set(Some(elem.link()));
         } else {
             elem.link().next.set(None);
             elem.link().prev.set(None);
-            self.link_start.next.set(Some(elem));
-            self.link_start.prev.set(Some(elem));
+            self.link_start.next.set(Some(elem.link()));
+            self.link_start.prev.set(Some(elem.link()));
         }
     }
 
     pub fn pop_front(&mut self) -> Option<&'static T> {
         if let Some(front) = self.link_start.next.get() {
-            if let Some(next) = front.link().next.get() {
-                next.link().prev.set(None);
+            if let Some(next) = front.next.get() {
+                next.prev.set(None);
                 self.link_start.next.set(Some(next));
-                front.link().next.set(None);
-                front.link().prev.set(None);
+                front.next.set(None);
+                front.prev.set(None);
             } else {
                 self.link_start.next.set(None);
                 self.link_start.prev.set(None);
-                front.link().next.set(None);
-                front.link().prev.set(None);
+                front.next.set(None);
+                front.prev.set(None);
             }
-            Some(front)
+            Some(T::from_link(front))
         } else {
             // list is empty
             None
@@ -66,12 +71,12 @@ impl<'a, T: LinkAdapter<T, LinkTag>, LinkTag: 'a> LinkedList<'a, T, LinkTag> {
 
     pub fn remove(&mut self, elem: &'static T) {
         if let Some(next) = elem.link().next.get() {
-            next.link().prev.set(elem.link().prev.get());
+            next.prev.set(elem.link().prev.get());
         } else {
             self.link_start.prev.set(elem.link().prev.get());
         }
         if let Some(prev) = elem.link().prev.get() {
-            prev.link().next.set(elem.link().next.get());
+            prev.next.set(elem.link().next.get());
         } else {
             self.link_start.next.set(elem.link().next.get());
         }
@@ -87,19 +92,21 @@ impl<'a, T: LinkAdapter<T, LinkTag>, LinkTag: 'a> LinkedList<'a, T, LinkTag> {
     }
 }
 
-pub struct ListIterator<'a, T: LinkAdapter<T, LinkTag> + 'static, LinkTag> {
+pub struct ListIterator<'a, T: LinkAdapter<LinkTag> + 'static, LinkTag> {
     current: &'a ListLink<T>,
     phantom_tag: PhantomData<LinkTag>,
 }
 
-impl<'a, T: LinkAdapter<T, LinkTag> + 'static, LinkTag> Iterator for ListIterator<'a, T, LinkTag> {
+impl<'a, T: LinkAdapter<LinkTag> + 'static, LinkTag> Iterator for ListIterator<'a, T, LinkTag> {
     type Item = &'static T;
 
     fn next(&mut self) -> Option<Self::Item> {
         let next = self.current.next.get();
         if let Some(next) = next {
-            self.current = next.link();
+            self.current = next;
+            Some(T::from_link(next))
+        } else {
+            None
         }
-        next
     }
 }

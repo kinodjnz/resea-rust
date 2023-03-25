@@ -27,7 +27,7 @@ ASOPT = --arch=$(ARCH) --mattr=+c,+m,+zba,+zbb,+relax --position-independent
 all: target/$(NAME).bin target/$(NAME).dump target/kernel.elf
 
 fmt:
-	$(CARGO) +nightly fmt
+	cargo +nightly fmt
 
 target/CACHEDIR.TAG target/$(TARGET)/release/lib$(NAME).a target/$(TARGET)/release/lib$(INIT).a: $(KERNEL_SRCS)
 	$(CARGO) build --features $(ARCH) --release

@@ -43,17 +43,33 @@ impl TaskListOps for TaskList {
 
 struct RunQueueTag;
 
-impl list::LinkAdapter<Task, RunQueueTag> for Task {
+impl list::LinkAdapter<RunQueueTag> for Task {
     fn link(&self) -> &list::ListLink<Task> {
         &self.noarch().runqueue_link
+    }
+    fn from_link(link: &list::ListLink<Task>) -> &Task {
+        unsafe {
+            mem::transmute::<usize, &Task>(
+                mem::transmute::<&list::ListLink<Task>, usize>(link)
+                    & !(mem::size_of::<Task>() - 1),
+            )
+        }
     }
 }
 
 pub struct SendersTag;
 
-impl list::LinkAdapter<Task, SendersTag> for Task {
+impl list::LinkAdapter<SendersTag> for Task {
     fn link(&self) -> &list::ListLink<Task> {
         &self.noarch().sender_link
+    }
+    fn from_link(link: &list::ListLink<Task>) -> &Task {
+        unsafe {
+            mem::transmute::<usize, &Task>(
+                mem::transmute::<&list::ListLink<Task>, usize>(link)
+                    & !(mem::size_of::<Task>() - 1),
+            )
+        }
     }
 }
 
