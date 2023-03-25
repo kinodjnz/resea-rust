@@ -5,6 +5,7 @@ ARCH = cramp32
 TARGET = $(ARCH)imc-unknown-none-elf
 
 LLVM_PATH = ../../rust-lang/rust/build/aarch64-apple-darwin/llvm/bin
+CARGO = ../../rust-lang/rust/build/aarch64-apple-darwin/stage2-tools-bin/cargo
 
 ARCH_DIR = kernel/src/arch/$(ARCH)
 
@@ -26,10 +27,10 @@ ASOPT = --arch=$(ARCH) --mattr=+c,+m,+zba,+zbb,+relax --position-independent
 all: target/$(NAME).bin target/$(NAME).dump target/kernel.elf
 
 fmt:
-	cargo +nightly fmt
+	$(CARGO) +nightly fmt
 
 target/CACHEDIR.TAG target/$(TARGET)/release/lib$(NAME).a target/$(TARGET)/release/lib$(INIT).a: $(KERNEL_SRCS)
-	cargo build --features $(ARCH) --release
+	$(CARGO) build --features $(ARCH) --release
 
 target/%.o: $(ARCH_DIR)/%.S target/CACHEDIR.TAG
 	$(AS) $(ASOPT) --filetype=obj -o $@ $<
