@@ -1,7 +1,6 @@
 use core::arch::asm;
 use core::mem;
 use klib::ipc::{IpcFlags, Message};
-use klib::mmio;
 use klib::result::KResult;
 
 struct Syscall;
@@ -126,9 +125,7 @@ pub fn ipc_send(dst_tid: u32, message: &Message) -> KResult<()> {
 
 #[allow(unused)]
 pub fn ipc_call(dst_tid: u32, message: &Message) -> KResult<Message> {
-    let mut ipc_message: mem::MaybeUninit<Message> = unsafe { mem::MaybeUninit::uninit() };
-    mmio::memcpy_align4(ipc_message.as_mut_ptr(), message, 1);
-    let mut ipc_message = unsafe { ipc_message.assume_init() };
+    let mut ipc_message: Message = *message;
     syscall4(
         Syscall::IPC,
         dst_tid,

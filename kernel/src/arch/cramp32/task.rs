@@ -1,7 +1,7 @@
 use crate::config;
 use crate::task::{GetNoarchTask, KArchTask, NoarchTask};
 use core::cell::Cell;
-use klib::mmio;
+use core::slice;
 use klib::result::KResult;
 
 const STACK_SIZE: usize = 4096;
@@ -29,13 +29,13 @@ fn init_stack(tid: u32, pc: usize) -> usize {
         extern "C" {
             fn cramp32_start_task();
         }
-        mmio::writev(sp, pc as u32); // mepc
-        for i in 0..7 {
+        let prep = slice::from_raw_parts_mut(sp, 16);
+        prep[0] = pc as u32; // mepc
+        for i in 1..15 {
             // gp, tp, s0-s11
-            mmio::writev(sp.add(i * 2 + 1), 0);
-            mmio::writev(sp.add(i * 2 + 2), 0);
+            prep[i] = 0;
         }
-        mmio::writev(sp.add(15), cramp32_start_task as u32); // ra
+        prep[15] = cramp32_start_task as u32; // ra
 
         sp as usize
     }

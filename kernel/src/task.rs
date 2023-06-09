@@ -6,7 +6,6 @@ use crate::zeroed_array;
 use core::cell::Cell;
 use core::mem;
 use klib::ipc::{Message, MessageType, Notifications};
-use klib::mmio;
 use klib::result::KResult;
 
 const TASK_PRIORITY_MAX: u32 = 8;
@@ -269,12 +268,8 @@ impl NotificationMessage for Message {
     fn set_notification(&mut self, notifications: Notifications) {
         self.message_type = MessageType::NOTIFICATIONS;
         self.src_tid = KERNEL_TID;
-        mmio::mzero_array(&mut self.raw);
-        mmio::memcpy_align4(
-            self.raw.as_mut_ptr() as *mut Notifications,
-            &notifications,
-            1,
-        );
+        self.raw.fill(0);
+        self.set_payload(&notifications);
     }
 }
 

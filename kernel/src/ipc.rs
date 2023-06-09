@@ -1,7 +1,6 @@
 use crate::task::{NotificationMessage, TaskOps, TaskPool, TaskRef, TaskState};
 use core::u32;
 use klib::ipc::{IpcFlags, Message, Notifications};
-use klib::mmio;
 use klib::result::KResult;
 
 pub struct IpcSrcTask;
@@ -37,7 +36,7 @@ pub fn send(
             return KResult::Aborted;
         }
     }
-    task_pool.update_message(dst_task, |dst_msg| mmio::memcpy_align4(dst_msg, message, 1));
+    task_pool.update_message(dst_task, |dst_msg| *dst_msg = *message);
     task_pool.resume_task(dst_task);
 
     KResult::Ok(())
@@ -100,9 +99,9 @@ pub fn recv(
         task_pool.task_switch();
 
         let current = task_pool.current();
-        task_pool.update_message(current, |current_message| {
-            mmio::memcpy_align4(message, current_message, 1)
-        });
+        task_pool.update_message(current, |current_message|
+            *message = *current_message
+        );
     }
 
     KResult::Ok(())

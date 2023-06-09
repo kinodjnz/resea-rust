@@ -1,4 +1,5 @@
 use core::ops::BitOr;
+use core::mem;
 
 #[derive(Clone, Copy)]
 pub struct IpcFlags(u8);
@@ -43,16 +44,26 @@ impl IpcFlags {
     }
 }
 
+#[derive(Clone, Copy)]
 pub struct MessageType(pub u32);
 
 impl MessageType {
     pub const NOTIFICATIONS: MessageType = MessageType(1);
 }
 
+#[derive(Clone, Copy)]
 pub struct Message {
     pub message_type: MessageType,
     pub src_tid: u32,
     pub raw: [u8; 24],
+}
+
+impl Message {
+    pub fn set_payload<T: Copy>(&mut self, data: &T) {
+        unsafe {
+            *mem::transmute::<_, &mut _>(&mut self.raw) = *data;
+        }
+    }
 }
 
 #[derive(Clone, Copy)]
