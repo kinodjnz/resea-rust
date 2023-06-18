@@ -40,6 +40,12 @@ SECTIONS
         __data_end = .;
     } >mem
 
+    .got : {
+        . = ALIGN(4);
+        *(.got);
+        . = ALIGN(4);
+    } >mem
+
     .bss : {
         . = ALIGN(4);
         __bss_start = .;
