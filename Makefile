@@ -5,7 +5,8 @@ ARCH = riscv32
 TARGET = $(ARCH)imc-unknown-none-elf
 
 LLVM_PATH = ../../rust-lang/rust/build/aarch64-apple-darwin/llvm/bin
-CARGO = ../../rust-lang/rust/build/aarch64-apple-darwin/stage2-tools-bin/cargo
+# CARGO = ../../rust-lang/rust/build/aarch64-apple-darwin/stage2-tools-bin/cargo
+CARGO = cargo
 
 # ARCH_DIR = kernel/src/arch/$(ARCH)
 ARCH_DIR = kernel/src/arch/cramp32
