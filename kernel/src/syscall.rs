@@ -3,6 +3,7 @@ use crate::console::Console;
 use crate::ipc;
 use crate::task;
 use core::slice;
+use core::mem;
 use klib::ipc::{IpcFlags, Message, Notifications};
 use klib::result::KResult;
 
@@ -102,7 +103,7 @@ pub extern "C" fn handle_syscall(
         Syscall::IPC => handle_ipc(
             a0,
             a1,
-            unsafe { &mut *(a2 as *mut Message) },
+            unsafe { mem::transmute::<u32, &mut Message>(a2) },
             IpcFlags::from_u32(a3),
         ),
         Syscall::NOTIFY => handle_notify(a0, Notifications::from_u32(a1)),
