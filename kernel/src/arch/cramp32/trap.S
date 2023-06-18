@@ -17,24 +17,24 @@ intr_handler:
         sw      t5, 12(sp)
         sw      t6, 8(sp)
 
-        csrr    a2, mcause
-        bltz    a2, 1f          // if interrupt bit is set
-        addi    a2, a2, -11
-        bnez    a2, 3f          // if not an environment call from m-mode
-
-        lw      a2, 56(sp)
-        call    handle_syscall
+        csrr    t0, mcause
+        bltz    t0, 1f          // if interrupt bit is set
+        addi    t0, t0, -11
+        bnez    t0, 3f          // if not an environment call from m-mode
 
         // In case of ecall, mepc points to the ecall address.
         // Fix mepc to next to the ecall address.
-        csrr    a2, mepc
-        addi    a2, a2, 4
-        csrw    mepc, a2
+        csrr    t0, mepc
+        addi    t0, t0, 4
+        csrw    mepc, t0
+
+        call    handle_syscall
         j       2f
 
 1:
         sw      a0, 4(sp)
         sw      a1, 0(sp)
+        mv      a2, t0
         call    cramp32_handle_interrupt
 4:
         lw      a1, 0(sp)
@@ -59,7 +59,7 @@ intr_handler:
         mret
 
 3:
-        lw      a2, 56(sp)
+        lw      t0, 32(sp)
         sw      a0, 4(sp)
         sw      a1, 0(sp)
         call    cramp32_handle_exception
