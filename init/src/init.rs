@@ -7,7 +7,7 @@ use klib::macros::*;
 use klib::result::KResult;
 
 #[no_mangle]
-pub extern "C" fn init_task() -> ! {
+pub extern "C" fn init_task() {
     cycle::init();
     syscall::console_write(b"init task started\n");
     let r = syscall::create_task(2, (console_task as *const ()) as usize);
@@ -89,7 +89,7 @@ pub fn console_task() {
     }
 }
 
-pub fn print1_task() -> ! {
+pub fn print1_task() {
     syscall::console_write(b"print1 task started\n");
     loop {
         let message = ConsoleMessage::new(b"Hello, Resea\n");
@@ -101,7 +101,7 @@ pub fn print1_task() -> ! {
     }
 }
 
-pub fn print2_task() -> ! {
+pub fn print2_task() {
     cycle::wait(cycle::clock_hz() / 2);
     syscall::console_write(b"print2 task started\n");
     loop {

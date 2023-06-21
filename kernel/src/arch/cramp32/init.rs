@@ -27,7 +27,7 @@ fn init_csr() {
 }
 
 #[no_mangle]
-pub extern "C" fn cramp32_init() -> ! {
+pub extern "C" fn cramp32_init() {
     init_bss();
     init_csr();
     timer::init();
