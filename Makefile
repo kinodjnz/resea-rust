@@ -24,7 +24,9 @@ OBJDUMP = $(LLVM_PATH)/llvm-objdump
 OBJCOPY = $(LLVM_PATH)/llvm-objcopy
 LD = $(LLVM_PATH)/ld.lld
 
-ASOPT = --arch=$(ARCH) --mattr=+c,+m,+zba,+zbb,+zbs,+relax --position-independent
+ASOPT = --arch=$(ARCH) --mattr=+c,+m,+zba,+zbb,+zbs,+relax
+
+ADDRESS_COMMENT = ./address_comment.rb
 
 all: target/$(NAME).bin target/$(NAME).dump target/kernel.elf
 
@@ -48,5 +50,8 @@ target/%.bin: target/%.elf
 target/%.hex: target/%.bin
 	od -An -tx4 -v $< > $@
 
-target/%.dump: target/%.elf
+target/%.dump.nocomment: target/%.elf
 	$(OBJDUMP) -dSC --mattr=+zba,+zbb,+zbs,+experimental-zbt --print-imm-hex $< > $@
+
+target/%.dump: target/%.dump.nocomment
+	$(ADDRESS_COMMENT) < $< > $@

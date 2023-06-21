@@ -1,6 +1,8 @@
 pub use crate::console::ConsoleWriter;
 pub use core::mem;
 pub use klib::macros::*;
+pub use core::arch::asm;
+pub use crate::local_address_of;
 
 #[macro_export]
 macro_rules! printk {

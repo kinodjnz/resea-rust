@@ -5,13 +5,9 @@ use crate::boot::kmain;
 use klib::mmio;
 
 fn init_bss() {
-    extern "C" {
-        static mut __bss_start: u32;
-        static __bss_end: u32;
-    }
-    unsafe {
-        mmio::mzero_align4(&mut __bss_start, &__bss_end);
-    }
+    let bss_start = local_address_of!("__bss_start");
+    let bss_end = local_address_of!("__bss_end");
+    mmio::mzero_align4(bss_start as *mut u32, bss_end as *const u32);
 }
 
 fn enable_interrupt() {
@@ -23,10 +19,8 @@ fn enable_machine_external_and_timer_interrupt() {
 }
 
 fn init_csr() {
-    extern "C" {
-        fn intr_handler();
-    }
-    cramp32_csrw!("mtvec", intr_handler as u32);
+    let intr_handler_ptr = local_address_of!("intr_handler");
+    cramp32_csrw!("mtvec", intr_handler_ptr);
     irq::init();
     enable_interrupt();
     enable_machine_external_and_timer_interrupt();

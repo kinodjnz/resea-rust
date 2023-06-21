@@ -3,11 +3,9 @@ use crate::task;
 
 pub fn kmain() -> ! {
     printk!(b"\nBooting Resea/Rust v0.0.1\n");
-    extern "C" {
-        fn init_task();
-    }
+    let init_task_ptr = local_address_of!("init_task");
     if task::get_task_pool()
-        .create_user_task(task::INIT_TID, (init_task as *const ()) as usize)
+        .create_user_task(task::INIT_TID, init_task_ptr)
         .is_err()
     {
         printk!(b"create init task failed");

@@ -1,5 +1,6 @@
 use crate::config;
 use crate::task::{GetNoarchTask, KArchTask, NoarchTask};
+use crate::macros::*;
 use core::cell::Cell;
 use core::slice;
 use klib::result::KResult;
@@ -26,16 +27,14 @@ fn init_stack(tid: u32, pc: usize) -> usize {
     unsafe {
         let stack: *mut u32 = EXCEPTION_STACKS.stack.get_unchecked_mut(tid as usize) as *mut u32;
         let sp = stack.add(STACK_COUNT).sub(16);
-        extern "C" {
-            fn cramp32_start_task();
-        }
         let prep = slice::from_raw_parts_mut(sp, 16);
+        let cramp32_start_task_ptr = local_address_of!("cramp32_start_task");
         prep[0] = pc as u32; // mepc
         for i in 1..15 {
             // gp, tp, s0-s11
             prep[i] = 0;
         }
-        prep[15] = cramp32_start_task as u32; // ra
+        prep[15] = cramp32_start_task_ptr as u32; // ra
 
         sp as usize
     }
