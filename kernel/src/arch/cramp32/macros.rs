@@ -1,4 +1,4 @@
-pub use crate::{cramp32_csrsi, cramp32_csrs, cramp32_csrw, local_address_of};
+pub use crate::{cramp32_csrs, cramp32_csrsi, cramp32_csrw, local_address_of};
 pub use core::arch::asm;
 
 #[macro_export]

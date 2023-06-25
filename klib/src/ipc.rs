@@ -1,5 +1,5 @@
-use core::ops::BitOr;
 use core::mem;
+use core::ops::BitOr;
 
 #[derive(Clone, Copy)]
 pub struct IpcFlags(u8);

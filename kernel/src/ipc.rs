@@ -99,9 +99,7 @@ pub fn recv(
         task_pool.task_switch();
 
         let current = task_pool.current();
-        task_pool.update_message(current, |current_message|
-            *message = *current_message
-        );
+        task_pool.update_message(current, |current_message| *message = *current_message);
     }
 
     KResult::Ok(())

@@ -2,8 +2,8 @@ use crate::config;
 use crate::console::Console;
 use crate::ipc;
 use crate::task;
-use core::slice;
 use core::mem;
+use core::slice;
 use klib::ipc::{IpcFlags, Message, Notifications};
 use klib::result::KResult;
 

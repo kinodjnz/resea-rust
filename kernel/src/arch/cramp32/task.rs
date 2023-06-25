@@ -1,6 +1,6 @@
 use crate::config;
-use crate::task::{GetNoarchTask, KArchTask, NoarchTask};
 use crate::macros::*;
+use crate::task::{GetNoarchTask, KArchTask, NoarchTask};
 use core::cell::Cell;
 use core::slice;
 use klib::result::KResult;
