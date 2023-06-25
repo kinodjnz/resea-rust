@@ -6,10 +6,8 @@ pub struct IpcFlags(u8);
 
 #[allow(unused)]
 impl IpcFlags {
-    const SEND: u8 = 1 << 0;
-    const RECV: u8 = 1 << 1;
-    const NOBLOCK: u8 = 1 << 2;
-    const KERNEL: u8 = 1 << 3; // Internally used by kernel.
+    const NOBLOCK: u8 = 1 << 0;
+    // const KERNEL: u8 = 1 << 1; // Internally used by kernel.
 
     pub fn from_u32(flags: u32) -> IpcFlags {
         IpcFlags(flags as u8)
@@ -18,29 +16,11 @@ impl IpcFlags {
         self.0 as u32
     }
 
-    pub fn send() -> IpcFlags {
-        IpcFlags(Self::SEND)
-    }
-    pub fn recv() -> IpcFlags {
-        IpcFlags(Self::RECV)
-    }
-    pub fn call() -> IpcFlags {
-        IpcFlags(Self::SEND | Self::RECV)
-    }
-    pub fn is_send(&self) -> bool {
-        self.0 & Self::SEND != 0
-    }
-    pub fn is_recv(&self) -> bool {
-        self.0 & Self::RECV != 0
+    pub fn block() -> IpcFlags {
+        IpcFlags(0)
     }
     pub fn is_noblock(&self) -> bool {
         self.0 & Self::NOBLOCK != 0
-    }
-    pub fn is_kernel(&self) -> bool {
-        self.0 & Self::KERNEL != 0
-    }
-    pub fn clear_noblock(&self) -> IpcFlags {
-        IpcFlags(self.0 & !Self::NOBLOCK)
     }
 }
 

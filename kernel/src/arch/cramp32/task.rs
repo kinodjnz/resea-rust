@@ -63,19 +63,19 @@ impl KArchTask for Cramp32Task {
     }
 
     fn init_current(task: &Cramp32Task) {
-        let task_ptr: u32 = unsafe { mem::transmute(<*const Cramp32Task>::from(task)) };
         unsafe {
+            let task_ptr: u32 = mem::transmute(<*const Cramp32Task>::from(task));
             asm!("csrw mscratch, {0}", in(reg) task_ptr);
             asm!("mv   tp, {0}", in(reg) task_ptr);
         }
     }
 
     fn current() -> &'static Cramp32Task {
-        let mut task_ptr: u32;
         unsafe {
+            let mut task_ptr: u32;
             asm!("mv {0}, tp", out(reg) task_ptr);
+            &*mem::transmute::<u32, *const Cramp32Task>(task_ptr)
         }
-        unsafe { &*mem::transmute::<u32, *const Cramp32Task>(task_ptr) }
     }
 }
 

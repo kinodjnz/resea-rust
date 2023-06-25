@@ -6,25 +6,7 @@ use core::mem;
 use core::slice;
 use klib::ipc::{IpcFlags, Message, Notifications};
 use klib::result::KResult;
-
-pub struct Syscall;
-
-#[allow(unused)]
-impl Syscall {
-    pub const NOP: u32 = 1;
-    pub const KDEBUG: u32 = 2;
-    pub const IPC: u32 = 3;
-    pub const NOTIFY: u32 = 4;
-    pub const SET_TIMER: u32 = 5;
-    pub const CONSOLE_WRITE: u32 = 6;
-    pub const CREATE_TASK: u32 = 8;
-    pub const DESTROY_TASK: u32 = 9;
-    pub const EXIT_TASK: u32 = 10;
-    pub const TASK_SELF: u32 = 11;
-    pub const SCHEDULE_TASK: u32 = 12;
-    pub const IRQ_ACQUIRE: u32 = 15;
-    pub const IRQ_RELEASE: u32 = 16;
-}
+use klib::syscall::Syscall;
 
 fn handle_set_timer(timeout: u32) -> KResult<()> {
     let task_pool = task::get_task_pool();
@@ -40,34 +22,28 @@ fn handle_console_write(s: &[u8]) -> KResult<()> {
     }
 }
 
-// Send/receive IPC messages.
-fn handle_ipc(dst_tid: u32, src_tid: u32, message: &mut Message, flags: IpcFlags) -> KResult<()> {
-    if flags.is_kernel() {
-        return KResult::InvalidArg;
-    }
+fn handle_ipc_send(dst_tid: u32, message: &mut Message) -> KResult<()> {
+    let task_pool = task::get_task_pool();
+    task_pool
+        .lookup_task(dst_tid)
+        .and_then(|task| ipc::send(task_pool, task, message, IpcFlags::block()))
+}
+
+fn handle_ipc_recv(src_tid: u32, message: &mut Message) -> KResult<()> {
     if src_tid > config::NUM_TASKS {
         return KResult::InvalidArg;
     }
 
     let task_pool = task::get_task_pool();
-    let result = if flags.is_send() {
-        task_pool
-            .lookup_task(dst_tid)
-            .and_then(|task| ipc::send(task_pool, task, message, flags))
-    } else {
-        KResult::Ok(())
-    };
-    if flags.is_recv() {
-        let recv_flags = if flags.is_send() {
-            // In case of nonblocking ipc call, the destination should respond soon.
-            flags.clear_noblock()
-        } else {
-            flags
-        };
-        result.and_then(|_| ipc::recv(task_pool, src_tid, message, recv_flags))
-    } else {
-        result
-    }
+    ipc::recv(task_pool, src_tid, message, IpcFlags::block())
+}
+
+fn handle_ipc_call(dst_tid: u32, message: &mut Message) -> KResult<()> {
+    let task_pool = task::get_task_pool();
+    task_pool
+        .lookup_task(dst_tid)
+        .and_then(|task| ipc::send(task_pool, task, message, IpcFlags::block()))
+        .and_then(|_| ipc::recv(task_pool, dst_tid, message, IpcFlags::block()))
 }
 
 // Sends notifications.
@@ -87,27 +63,30 @@ fn handle_create_task(tid: u32, pc: usize) -> KResult<()> {
 pub extern "C" fn handle_syscall(
     a0: u32,
     a1: u32,
-    a2: u32,
-    a3: u32,
+    _a2: u32,
+    _a3: u32,
     _a4: u32,
     _a5: u32,
     _syscall_subid: u32,
     syscall_id: u32,
 ) -> u32 {
     let r = match syscall_id {
-        Syscall::NOP => KResult::Ok(()),
-        Syscall::SET_TIMER => handle_set_timer(a0),
-        Syscall::CONSOLE_WRITE => {
+        i if i == Syscall::Nop.as_u32() => KResult::Ok(()),
+        i if i == Syscall::SetTimer.as_u32() => handle_set_timer(a0),
+        i if i == Syscall::ConsoleWrite.as_u32() => {
             handle_console_write(unsafe { slice::from_raw_parts(a0 as *const u8, a1 as usize) })
         }
-        Syscall::IPC => handle_ipc(
-            a0,
-            a1,
-            unsafe { mem::transmute::<u32, &mut Message>(a2) },
-            IpcFlags::from_u32(a3),
-        ),
-        Syscall::NOTIFY => handle_notify(a0, Notifications::from_u32(a1)),
-        Syscall::CREATE_TASK => handle_create_task(a0, a1 as usize),
+        i if i == Syscall::IpcSend.as_u32() => {
+            handle_ipc_send(a0, unsafe { mem::transmute::<u32, &mut Message>(a1) })
+        }
+        i if i == Syscall::IpcRecv.as_u32() => {
+            handle_ipc_recv(a0, unsafe { mem::transmute::<u32, &mut Message>(a1) })
+        }
+        i if i == Syscall::IpcCall.as_u32() => {
+            handle_ipc_call(a0, unsafe { mem::transmute::<u32, &mut Message>(a1) })
+        }
+        i if i == Syscall::Notify.as_u32() => handle_notify(a0, Notifications::from_u32(a1)),
+        i if i == Syscall::CreateTask.as_u32() => handle_create_task(a0, a1 as usize),
         _ => KResult::InvalidArg,
     };
     match r {

@@ -12,3 +12,4 @@ pub mod fmt;
 pub mod ipc;
 pub mod mmio;
 pub mod result;
+pub mod syscall;
