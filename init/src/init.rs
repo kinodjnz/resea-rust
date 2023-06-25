@@ -1,4 +1,5 @@
 use crate::syscall;
+use core::arch::{asm, global_asm};
 use core::mem;
 use core::ptr;
 use klib::cycle;
@@ -6,15 +7,64 @@ use klib::ipc::{Message, MessageType};
 use klib::macros::*;
 use klib::result::KResult;
 
-#[no_mangle]
-pub extern "C" fn init_task() {
+const STACK_SIZE: usize = 4096;
+const STACK_COUNT: usize = STACK_SIZE / 4;
+
+#[repr(align(4096))]
+pub struct UserStacks {
+    _stack: [[u32; STACK_COUNT]; 3],
+}
+
+#[link_section = ".ubss"]
+pub static mut USER_STACKS: UserStacks = UserStacks {
+    _stack: [[0; STACK_COUNT]; 3],
+};
+
+global_asm!(r#"
+    .section .text.init
+    .global init_task
+init_task:
+    lla sp, {0} + {1}*1
+    jump {2}, t0
+"#, sym USER_STACKS, const STACK_SIZE, sym init_task_rust);
+
+global_asm!(r#"
+    .section .text.init
+    .global console_task
+console_task:
+    lla sp, {0} + {1}*2
+    jump {2}, t0
+"#, sym USER_STACKS, const STACK_SIZE, sym console_task_rust);
+
+global_asm!(r#"
+    .section .text.init
+    .global print1_task
+print1_task:
+    lla sp, {0} + {1}*3
+    jump {2}, t0
+"#, sym USER_STACKS, const STACK_SIZE, sym print1_task_rust);
+
+macro_rules! local_address_of {
+    ($symbol: expr) => {
+        {
+            let mut temp_addr: usize;
+            #[allow(unused_unsafe)]
+            unsafe {
+                asm!(concat!("lla {0}, ", $symbol), out(reg) temp_addr);
+            }
+            temp_addr
+        }
+    }
+}
+
+pub fn init_task_rust() {
     cycle::init();
     syscall::console_write(b"init task started\n");
-    let r = syscall::create_task(2, (console_task as *const ()) as usize);
+    let r = syscall::create_task(2, local_address_of!("console_task"));
     if r.is_err() {
         syscall::console_write(b"create console task failed\n");
     }
-    let r = syscall::create_task(3, (print1_task as *const ()) as usize);
+    let r = syscall::create_task(3, local_address_of!("print1_task"));
     if r.is_err() {
         syscall::console_write(b"create print1 task failed\n");
     }
@@ -77,7 +127,7 @@ fn print_error<const N: usize>(format: &[u8], err: u32) {
     syscall::console_write(writer.as_slice());
 }
 
-pub fn console_task() {
+pub fn console_task_rust() {
     syscall::console_write(b"console task started\n");
     loop {
         match syscall::ipc_recv(0) {
@@ -89,7 +139,7 @@ pub fn console_task() {
     }
 }
 
-pub fn print1_task() {
+pub fn print1_task_rust() {
     syscall::console_write(b"print1 task started\n");
     loop {
         let message = ConsoleMessage::new(b"Hello, Resea\n");

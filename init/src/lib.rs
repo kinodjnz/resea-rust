@@ -1,6 +1,7 @@
 #![no_std]
 #![feature(concat_bytes)]
 #![feature(maybe_uninit_slice)]
+#![feature(asm_const)]
 
 #[macro_use]
 extern crate klib;
