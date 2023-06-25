@@ -4,7 +4,7 @@ cramp32_task_switch:
         addi    sp, sp, -64
         sw      ra, 60(sp)
         sw      gp, 56(sp)
-        sw      tp, 52(sp)
+        # sw      tp, 52(sp)
         sw      s0, 48(sp)
         sw      s1, 44(sp)
         sw      s2, 40(sp)
@@ -17,14 +17,17 @@ cramp32_task_switch:
         sw      s9, 12(sp)
         sw      s10, 8(sp)
         sw      s11, 4(sp)
-        csrr    a2, mepc
-        sw      a2, 0(sp)
+        csrr    a3, mepc
+        sw      a3, 0(sp)
 
         sw      sp, 0(a0)
         mv      sp, a1
 
-        lw      a2, 0(sp)
-        csrw    mepc, a2
+        csrw    mscratch, a2
+        mv      tp, a2
+
+        lw      a3, 0(sp)
+        csrw    mepc, a3
         lw      s11, 4(sp)
         lw      s10, 8(sp)
         lw      s9, 12(sp)
@@ -37,7 +40,7 @@ cramp32_task_switch:
         lw      s2, 40(sp)
         lw      s1, 44(sp)
         lw      s0, 48(sp)
-        lw      tp, 52(sp)
+        # lw      tp, 52(sp)
         lw      gp, 56(sp)
         lw      ra, 60(sp)
         addi    sp, sp, 64

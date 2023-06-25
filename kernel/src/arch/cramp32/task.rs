@@ -17,9 +17,11 @@ static mut EXCEPTION_STACKS: ExceptionStack = ExceptionStack {
     stack: [[0; STACK_COUNT]; config::NUM_TASKS as usize],
 };
 
-#[repr(align(128))]
+#[repr(C, align(128))]
 pub struct Cramp32Task {
     stack: Cell<usize>,
+    user_sp: Cell<u32>,
+    user_tp: Cell<u32>,
     noarch_task: NoarchTask,
 }
 
@@ -48,11 +50,32 @@ impl KArchTask for Cramp32Task {
 
     fn arch_task_switch(prev: &Cramp32Task, next: &Cramp32Task) {
         extern "C" {
-            fn cramp32_task_switch(prev_sp: *mut usize, next_sp: usize);
+            #[allow(improper_ctypes)]
+            fn cramp32_task_switch(
+                prev_sp: *mut usize,
+                next_sp: usize,
+                next_task: *const Cramp32Task,
+            );
         }
         unsafe {
-            cramp32_task_switch(prev.stack.as_ptr(), next.stack.get());
+            cramp32_task_switch(prev.stack.as_ptr(), next.stack.get(), next);
         }
+    }
+
+    fn init_current(task: &Cramp32Task) {
+        let task_ptr: u32 = unsafe { mem::transmute(<*const Cramp32Task>::from(task)) };
+        unsafe {
+            asm!("csrw mscratch, {0}", in(reg) task_ptr);
+            asm!("mv   tp, {0}", in(reg) task_ptr);
+        }
+    }
+
+    fn current() -> &'static Cramp32Task {
+        let mut task_ptr: u32;
+        unsafe {
+            asm!("mv {0}, tp", out(reg) task_ptr);
+        }
+        unsafe { &*mem::transmute::<u32, *const Cramp32Task>(task_ptr) }
     }
 }
 

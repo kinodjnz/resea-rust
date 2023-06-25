@@ -1,6 +1,9 @@
 .option rvc
 .global intr_handler
 intr_handler:
+        csrrw   tp, mscratch, tp
+        sw      sp, 4(tp)
+        lw      sp, 0(tp)
         addi    sp, sp, -64
         sw      ra, 60(sp)
         sw      a2, 56(sp)
@@ -16,6 +19,8 @@ intr_handler:
         sw      t4, 16(sp)
         sw      t5, 12(sp)
         sw      t6, 8(sp)
+        csrrw   t0, mscratch, tp
+        sw      t0, 8(tp)
 
         csrr    t0, mcause
         bltz    t0, 1f          // if interrupt bit is set
@@ -56,6 +61,9 @@ intr_handler:
         lw      a2, 56(sp)
         lw      ra, 60(sp)
         addi    sp, sp, 64
+        sw      sp, 0(tp)
+        lw      sp, 4(tp)
+        lw      tp, 8(tp)
         mret
 
 3:

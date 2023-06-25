@@ -20,13 +20,11 @@ type RunQueue = list::ListLink<Task>;
 #[repr(align(16))]
 pub struct TaskPool {
     pub tasks: TaskList,
-    current: Cell<Option<&'static Task>>,
     runqueues: [RunQueue; TASK_PRIORITY_MAX as usize],
 }
 
 static mut TASK_POOL: TaskPool = TaskPool {
     tasks: zeroed_array!(Task, config::NUM_TASKS as usize),
-    current: zeroed_const!(Cell<Option<&'static Task>>),
     runqueues: zeroed_array!(list::ListLink<Task>, TASK_PRIORITY_MAX as usize),
 };
 
@@ -81,7 +79,7 @@ impl TaskPool {
     }
 
     pub fn current(&self) -> TaskRef {
-        unsafe { self.current.get().unwrap_unchecked() }
+        Task::current()
     }
 
     fn list_for_runqueue(&self, priority: u32) -> list::LinkedList<'_, Task, RunQueueTag> {
@@ -108,7 +106,7 @@ impl TaskPool {
         Self::initiate_task(0, self.tasks.task(0), 0).map(|_| {
             let task = self.tasks.task(0);
             task.noarch().task_type.set(TaskType::Idle);
-            self.current.set(Some(task));
+            Task::init_current(task);
         })
     }
 
@@ -154,19 +152,14 @@ impl TaskPool {
             return;
         }
 
-        self.current.set(Some(next));
         Task::arch_task_switch(prev, next);
 
         // stack_check();
     }
 
     pub fn set_current_timeout(&self, timeout: u32) -> KResult<()> {
-        if let Some(current) = self.current.get() {
-            current.noarch().timeout.set(timeout);
-            KResult::Ok(())
-        } else {
-            KResult::NotReady
-        }
+        self.current().noarch().timeout.set(timeout);
+        KResult::Ok(())
     }
 
     pub fn set_src_tid(&self, task: TaskRef, src_tid: u32) {
@@ -236,11 +229,11 @@ pub struct NoarchTask {
     tid: Cell<u32>,
     task_type: Cell<TaskType>,
     state: Cell<TaskState>,
+    notifications: Cell<Notifications>,
     priority: Cell<u32>,
     quantum: Cell<i32>,
     message: Cell<Message>,
     src_tid: Cell<u32>,
-    notifications: Cell<Notifications>,
     timeout: Cell<u32>,
     senders: list::ListLink<Task>,
     runqueue_link: list::ListLink<Task>,
@@ -276,6 +269,8 @@ impl NotificationMessage for Message {
 pub trait KArchTask {
     fn arch_task_init(tid: u32, task: TaskRef, pc: usize) -> KResult<()>;
     fn arch_task_switch(prev: &Task, next: &Task);
+    fn init_current(task: TaskRef);
+    fn current() -> TaskRef;
 }
 
 pub trait GetNoarchTask {
@@ -356,10 +351,9 @@ pub fn handle_timer_irq() {
         .count()
         > 0;
 
-    if let Some(current) = task_pool.current.get() {
-        current.noarch().quantum.update(|quantum| quantum - 1);
-        if current.quantum() < 0 || resumed_by_timeout {
-            task_pool.task_switch();
-        }
+    let current = task_pool.current();
+    current.noarch().quantum.update(|quantum| quantum - 1);
+    if current.quantum() < 0 || resumed_by_timeout {
+        task_pool.task_switch();
     }
 }
