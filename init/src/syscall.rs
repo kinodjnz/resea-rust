@@ -107,6 +107,13 @@ pub fn ipc_call(dst_tid: u32, message: &Message) -> KResult<Message> {
 }
 
 #[allow(unused)]
+pub fn ipc_send_noblock(dst_tid: u32, message: &Message) -> KResult<()> {
+    syscall2(Syscall::IpcSendNoblock, dst_tid, unsafe {
+        mem::transmute(<*const _>::from(message))
+    })
+}
+
+#[allow(unused)]
 pub fn create_task(tid: u32, pc: usize) -> KResult<()> {
     syscall2(Syscall::CreateTask, tid, pc as u32)
 }

@@ -22,11 +22,11 @@ fn handle_console_write(s: &[u8]) -> KResult<()> {
     }
 }
 
-fn handle_ipc_send(dst_tid: u32, message: &mut Message) -> KResult<()> {
+fn handle_ipc_send(dst_tid: u32, message: &mut Message, flags: IpcFlags) -> KResult<()> {
     let task_pool = task::get_task_pool();
     task_pool
         .lookup_task(dst_tid)
-        .and_then(|task| ipc::send(task_pool, task, message, IpcFlags::block()))
+        .and_then(|task| ipc::send(task_pool, task, message, flags))
 }
 
 fn handle_ipc_recv(src_tid: u32, message: &mut Message) -> KResult<()> {
@@ -76,15 +76,22 @@ pub extern "C" fn handle_syscall(
         i if i == Syscall::ConsoleWrite.as_u32() => {
             handle_console_write(unsafe { slice::from_raw_parts(a0 as *const u8, a1 as usize) })
         }
-        i if i == Syscall::IpcSend.as_u32() => {
-            handle_ipc_send(a0, unsafe { mem::transmute::<u32, &mut Message>(a1) })
-        }
+        i if i == Syscall::IpcSend.as_u32() => handle_ipc_send(
+            a0,
+            unsafe { mem::transmute::<u32, &mut Message>(a1) },
+            IpcFlags::block(),
+        ),
         i if i == Syscall::IpcRecv.as_u32() => {
             handle_ipc_recv(a0, unsafe { mem::transmute::<u32, &mut Message>(a1) })
         }
         i if i == Syscall::IpcCall.as_u32() => {
             handle_ipc_call(a0, unsafe { mem::transmute::<u32, &mut Message>(a1) })
         }
+        i if i == Syscall::IpcSendNoblock.as_u32() => handle_ipc_send(
+            a0,
+            unsafe { mem::transmute::<u32, &mut Message>(a1) },
+            IpcFlags::noblock(),
+        ),
         i if i == Syscall::Notify.as_u32() => handle_notify(a0, Notifications::from_u32(a1)),
         i if i == Syscall::CreateTask.as_u32() => handle_create_task(a0, a1 as usize),
         _ => KResult::InvalidArg,

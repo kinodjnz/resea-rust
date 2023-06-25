@@ -54,6 +54,10 @@ SECTIONS
         . = ALIGN(4);
         __bss_end = .;
 
+        . = ALIGN(4);
+        *(.ubss*);
+        . = ALIGN(4);
+
         __boot_stack_start = .;
         . += 0x800;
         . = ALIGN(0x1000);

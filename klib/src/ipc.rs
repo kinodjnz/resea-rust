@@ -19,6 +19,9 @@ impl IpcFlags {
     pub fn block() -> IpcFlags {
         IpcFlags(0)
     }
+    pub fn noblock() -> IpcFlags {
+        IpcFlags(Self::NOBLOCK)
+    }
     pub fn is_noblock(&self) -> bool {
         self.0 & Self::NOBLOCK != 0
     }

@@ -6,6 +6,7 @@ pub enum Syscall {
     IpcSend,
     IpcRecv,
     IpcCall,
+    IpcSendNoblock,
     Notify,
     SetTimer,
     ConsoleWrite,

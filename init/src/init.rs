@@ -102,8 +102,8 @@ pub fn print1_task() {
 }
 
 pub fn print2_task() {
-    cycle::wait(cycle::clock_hz() / 2);
     syscall::console_write(b"print2 task started\n");
+    cycle::wait(cycle::clock_hz() / 2);
     loop {
         let message = ConsoleMessage::new(b"Hello, RISC-V\n");
         match syscall::ipc_send(2, &message.as_message()) {

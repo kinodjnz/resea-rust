@@ -52,5 +52,6 @@ cramp32_start_task:
 
         li      a0, 0x80
         csrs    mstatus, a0
+        sw      sp, 0(tp)
 
         mret

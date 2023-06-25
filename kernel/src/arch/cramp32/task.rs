@@ -13,6 +13,7 @@ struct ExceptionStack {
     stack: [[u32; STACK_COUNT]; config::NUM_TASKS as usize],
 }
 
+#[link_section = ".ubss"]
 static mut EXCEPTION_STACKS: ExceptionStack = ExceptionStack {
     stack: [[0; STACK_COUNT]; config::NUM_TASKS as usize],
 };
