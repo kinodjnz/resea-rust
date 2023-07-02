@@ -2,4 +2,4 @@
 # target = "cramp32imc-unknown-none-elf"
 target = "riscv32imc-unknown-none-elf"
 # rustflags = ["-C", "relocation-model=pic", "-C", "target-feature=+zba,+zbb,+zbs,+experimental-zbt,+xnorot,+relax"]
-rustflags = ["-C", "relocation-model=pic", "-C", "target-feature=+zbb,+xnorot,+relax"]
+# rustflags = ["-C", "relocation-model=pic", "-C", "target-feature=+zbb,+xnorot,+xcramp,+relax"]

@@ -4,9 +4,14 @@ NAME = kernel
 ARCH = riscv32
 TARGET = $(ARCH)imc-unknown-none-elf
 
+COMMON_INSN_OPT=+zbb,+xcramp
+#COMMON_INSN_OPT=+zbb
+
+CARGO_BUILD_RUSTFLAGS=-C relocation-model=pic -C target-feature=$(COMMON_INSN_OPT),+relax
+
 LLVM_PATH = ../../rust-lang/rust/build/aarch64-apple-darwin/llvm/bin
 # CARGO = ../../rust-lang/rust/build/aarch64-apple-darwin/stage2-tools-bin/cargo
-CARGO = cargo
+CARGO = env CARGO_BUILD_RUSTFLAGS="$(CARGO_BUILD_RUSTFLAGS)" cargo
 
 # ARCH_DIR = kernel/src/arch/$(ARCH)
 ARCH_DIR = kernel/src/arch/cramp32
@@ -24,7 +29,8 @@ OBJDUMP = $(LLVM_PATH)/llvm-objdump
 OBJCOPY = $(LLVM_PATH)/llvm-objcopy
 LD = $(LLVM_PATH)/ld.lld
 
-ASOPT = --arch=$(ARCH) --mattr=+c,+m,+zba,+zbb,+zbs,+relax
+INSN_OPT = +zba,+zbs,+zbb,+xcramp
+ASOPT = --arch=$(ARCH) --mattr=+c,+m,$(INSN_OPT),+relax
 
 ADDRESS_COMMENT = ./address_comment.rb
 
@@ -51,7 +57,7 @@ target/%.hex: target/%.bin
 	od -An -tx4 -v $< > $@
 
 target/%.dump.nocomment: target/%.elf
-	$(OBJDUMP) -dSC --mattr=+zba,+zbb,+zbs,+experimental-zbt --print-imm-hex $< > $@
+	$(OBJDUMP) -dSC --mattr=$(INSN_OPT) --print-imm-hex $< > $@
 
 target/%.dump: target/%.dump.nocomment
 	$(ADDRESS_COMMENT) < $< > $@
