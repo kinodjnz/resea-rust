@@ -46,6 +46,15 @@ while line = ARGF.gets
             actual_addr = u[1] + lower_off.to_i
         end
     end
+    _, addr, lower_off, addr_reg = /([0-9A-F]+):.*jr\s+([-0-9]+)\(([0-9a-z]+)\)/i.match(line).to_a.map(&:downcase)
+    if addr != nil then
+        # puts "jr    #{ARGF.lineno} #{addr} #{dest_reg} #{addr_reg} #{lower_off}"
+        u = uimap[addr_reg]
+        if u != nil && u[0] + line_limit > ARGF.lineno then
+            actual_addr = u[1] + lower_off.to_i
+        end
+    end
+
     if actual_addr != nil then
         puts "#{line.chomp}   # #{sprintf("%08x", actual_addr)}"
     else

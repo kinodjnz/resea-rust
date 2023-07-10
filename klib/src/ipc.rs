@@ -27,7 +27,7 @@ impl IpcFlags {
     }
 }
 
-#[derive(Clone, Copy)]
+#[derive(Clone, Copy, PartialEq, Eq)]
 pub struct MessageType(pub u32);
 
 impl MessageType {
@@ -50,17 +50,17 @@ impl Message {
 }
 
 #[derive(Clone, Copy)]
-pub struct Notifications(u8);
+pub struct Notifications(u32);
 
 #[allow(unused)]
 impl Notifications {
-    const TIMER: u8 = 1 << 0;
-    const IRQ: u8 = 1 << 1;
-    const ABORTED: u8 = 1 << 2;
-    const ASYNC: u8 = 1 << 3;
+    const TIMER: u32 = 1 << 0;
+    const IRQ: u32 = 1 << 1;
+    const ABORTED: u32 = 1 << 2;
+    const ASYNC: u32 = 1 << 3;
 
     pub fn from_u32(n: u32) -> Notifications {
-        Notifications(n as u8)
+        Notifications(n)
     }
 
     pub fn timer() -> Notifications {
@@ -77,6 +77,9 @@ impl Notifications {
     }
     pub fn is_aborted(&self) -> bool {
         self.0 & Self::ABORTED != 0
+    }
+    pub fn is_timer(&self) -> bool {
+        self.0 & Self::TIMER != 0
     }
     pub fn exists(&self) -> bool {
         self.0 != 0

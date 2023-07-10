@@ -22,7 +22,7 @@ fn handle_console_write(s: &[u8]) -> KResult<()> {
     }
 }
 
-fn handle_ipc_send(dst_tid: u32, message: &mut Message, flags: IpcFlags) -> KResult<()> {
+fn handle_ipc_send(dst_tid: u32, message: &Message, flags: IpcFlags) -> KResult<()> {
     let task_pool = task::get_task_pool();
     task_pool
         .lookup_task(dst_tid)
@@ -78,7 +78,7 @@ pub extern "C" fn handle_syscall(
         }
         i if i == Syscall::IpcSend.as_u32() => handle_ipc_send(
             a0,
-            unsafe { mem::transmute::<u32, &mut Message>(a1) },
+            unsafe { mem::transmute::<u32, &Message>(a1) },
             IpcFlags::block(),
         ),
         i if i == Syscall::IpcRecv.as_u32() => {

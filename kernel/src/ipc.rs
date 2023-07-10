@@ -13,7 +13,7 @@ impl IpcSrcTask {
 pub fn send(
     task_pool: &TaskPool,
     dst_task: TaskRef,
-    message: &mut Message,
+    message: &Message,
     flags: IpcFlags,
 ) -> KResult<()> {
     let receiver_is_ready = dst_task.state() == TaskState::Blocked

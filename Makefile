@@ -39,7 +39,7 @@ all: target/$(NAME).bin target/$(NAME).dump target/kernel.elf
 fmt:
 	cargo +nightly fmt
 
-target/CACHEDIR.TAG target/$(TARGET)/release/lib$(NAME).a target/$(TARGET)/release/lib$(INIT).a: $(KERNEL_SRCS)
+target/CACHEDIR.TAG target/$(TARGET)/release/lib$(NAME).a target/$(TARGET)/release/lib$(INIT).a target/$(TARGET)/release/libmemintrinsics.a: $(KERNEL_SRCS)
 	$(CARGO) build --features cramp32 --release
 #	$(CARGO) build --features $(ARCH) --release
 #	RUSTFLAGS='--emit=llvm-ir' $(CARGO) build --features $(ARCH) --release
@@ -47,7 +47,7 @@ target/CACHEDIR.TAG target/$(TARGET)/release/lib$(NAME).a target/$(TARGET)/relea
 target/%.o: $(ARCH_DIR)/%.S target/CACHEDIR.TAG
 	$(AS) $(ASOPT) --filetype=obj -o $@ $<
 
-target/%.elf: $(KERNEL_LD) $(KERNEL_ASM_OBJS) target/$(TARGET)/release/lib$(INIT).a target/$(TARGET)/release/lib%.a
+target/%.elf: $(KERNEL_LD) $(KERNEL_ASM_OBJS) target/$(TARGET)/release/libmemintrinsics.a target/$(TARGET)/release/lib$(INIT).a target/$(TARGET)/release/lib%.a
 	$(LD) -T $+ -o $@ -nostdlib --relax
 
 target/%.bin: target/%.elf

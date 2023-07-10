@@ -3,6 +3,7 @@ members = [
     "kernel",
     "init",
     "klib",
+    "memintrinsics",
 ]
 
 [profile.release]
@@ -11,4 +12,4 @@ debug = 0
 overflow-checks = false
 lto = true
 codegen-units = 1
-#panic = "abort"
+# panic = "abort"

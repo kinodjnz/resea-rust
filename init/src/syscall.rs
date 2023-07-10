@@ -42,6 +42,14 @@ pub fn syscall0(syscall_id: Syscall) -> KResult<()> {
 }
 
 #[allow(unused)]
+pub fn syscall1(syscall_id: Syscall, mut a0: u32) -> KResult<()> {
+    unsafe {
+        asm!("ecall", inout("a0") a0, in("a7") syscall_id as u32);
+        to_unit_result(a0)
+    }
+}
+
+#[allow(unused)]
 pub fn syscall2r(syscall_id: Syscall, mut a0: u32, mut a1: u32) -> KResult<u32> {
     unsafe {
         asm!("ecall", inout("a0") a0, inout("a1") a1, in("a7") syscall_id as u32);
@@ -74,6 +82,11 @@ pub fn syscall4(
 #[allow(unused)]
 pub fn nop() -> KResult<()> {
     syscall0(Syscall::Nop)
+}
+
+#[allow(unused)]
+pub fn set_timer(timeout: u32) -> KResult<()> {
+    syscall1(Syscall::SetTimer, timeout)
 }
 
 #[allow(unused)]

@@ -1,7 +1,7 @@
 use crate::syscall;
 use core::arch::{asm, global_asm};
 use core::mem;
-use core::ptr;
+use core::slice;
 use klib::cycle;
 use klib::ipc::{Message, MessageType};
 use klib::macros::*;
@@ -34,7 +34,7 @@ global_asm!(r#"
 console_task:
     lla sp, {0} + {1}*2
     jump {2}, t0
-"#, sym USER_STACKS, const STACK_SIZE, sym console_task_rust);
+"#, sym USER_STACKS, const STACK_SIZE, sym crate::generator::console_task);
 
 global_asm!(r#"
     .section .text.init
@@ -71,56 +71,50 @@ pub fn init_task_rust() {
     print2_task()
 }
 
-#[allow(unused)]
-struct UserMessage<T> {
-    message_type: MessageType,
-    src_tid: u32,
-    payload: T,
-}
-
-impl<T> UserMessage<T> {
-    fn from_message(message: &Message) -> &UserMessage<T> {
-        unsafe {
-            &*(message as *const Message as *const UserMessage<T>) // TODO size check
-        }
-    }
-
-    fn as_message(&self) -> &Message {
-        unsafe { &*(self as *const UserMessage<T> as *const Message) }
-    }
-}
-
-struct ConsolePayload {
+pub struct ConsolePayload {
     data: *const u8,
     len: usize,
 }
 
-type ConsoleMessage = UserMessage<ConsolePayload>;
+pub struct ConsoleMessage;
 
 impl ConsoleMessage {
-    fn new(text: &[u8]) -> ConsoleMessage {
-        ConsoleMessage {
-            message_type: MessageType(1),
-            src_tid: 0,
-            payload: ConsolePayload {
-                data: text.as_ptr(),
-                len: text.len(),
-            },
+    pub const CONSOLE_OUT: MessageType = MessageType(2);
+
+    pub fn text_of(message: &Message) -> &[u8] {
+        unsafe {
+            let payload: &ConsolePayload = &*(message.raw.as_ptr() as *const ConsolePayload);
+            slice::from_raw_parts(payload.data, payload.len)
         }
     }
 
-    fn text(&self) -> &[u8] {
-        unsafe { &*ptr::slice_from_raw_parts(self.payload.data, self.payload.len) }
+    pub fn new(payload: &[u8]) -> Message {
+        Message {
+            message_type: ConsoleMessage::CONSOLE_OUT,
+            src_tid: 0,
+            raw: unsafe {
+                *(&ConsolePayload {
+                    data: payload.as_ptr(),
+                    len: payload.len(),
+                } as *const ConsolePayload as *const [u8; 24])
+            },
+        }
     }
 }
 
+#[repr(align(4))]
+pub struct AlignedVarArray<'a> {
+    pub data: &'a [u8],
+}
+
+#[macro_export]
 macro_rules! print_error {
     ($message:expr, $err:expr) => {
         print_error::<{ $message.len() + 8 }>($message, $err)
     };
 }
 
-fn print_error<const N: usize>(format: &[u8], err: u32) {
+pub fn print_error<const N: usize>(format: &[u8], err: u32) {
     let mut buf = [mem::MaybeUninit::uninit(); N];
     let mut writer = BufWriter::new(&mut buf);
     buf_fmt!(&mut writer, format, err);
@@ -132,7 +126,7 @@ pub fn console_task_rust() {
     loop {
         match syscall::ipc_recv(0) {
             KResult::Ok(message) => {
-                syscall::console_write(ConsoleMessage::from_message(&message).text());
+                syscall::console_write(ConsoleMessage::text_of(&message));
             }
             err => print_error!(b"ipc_recv failed: {}\n", err.err_as_u32()),
         };
@@ -143,7 +137,7 @@ pub fn print1_task_rust() {
     syscall::console_write(b"print1 task started\n");
     loop {
         let message = ConsoleMessage::new(b"Hello, Resea\n");
-        match syscall::ipc_send(2, &message.as_message()) {
+        match syscall::ipc_send(2, &message) {
             KResult::Ok(_) => (),
             err => print_error!(b"ipc_send failed: {}\n", err.err_as_u32()),
         };
@@ -156,7 +150,7 @@ pub fn print2_task() {
     cycle::wait(cycle::clock_hz() / 2);
     loop {
         let message = ConsoleMessage::new(b"Hello, RISC-V\n");
-        match syscall::ipc_send(2, &message.as_message()) {
+        match syscall::ipc_send(2, &message) {
             KResult::Ok(_) => (),
             err => print_error!(b"ipc_send failed: {}\n", err.err_as_u32()),
         };

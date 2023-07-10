@@ -5,16 +5,16 @@ use core::cell::Cell;
 use core::slice;
 use klib::result::KResult;
 
-const STACK_SIZE: usize = 4096;
+const STACK_SIZE: usize = 512;
 const STACK_COUNT: usize = STACK_SIZE / 4;
 
-#[repr(align(4096))]
-struct ExceptionStack {
+#[repr(align(512))]
+struct KernelStack {
     stack: [[u32; STACK_COUNT]; config::NUM_TASKS as usize],
 }
 
 #[link_section = ".ubss"]
-static mut EXCEPTION_STACKS: ExceptionStack = ExceptionStack {
+static mut KERNEL_STACKS: KernelStack = KernelStack {
     stack: [[0; STACK_COUNT]; config::NUM_TASKS as usize],
 };
 
@@ -28,7 +28,7 @@ pub struct Cramp32Task {
 
 fn init_stack(tid: u32, pc: usize) -> usize {
     unsafe {
-        let stack: *mut u32 = EXCEPTION_STACKS.stack.get_unchecked_mut(tid as usize) as *mut u32;
+        let stack: *mut u32 = KERNEL_STACKS.stack.get_unchecked_mut(tid as usize) as *mut u32;
         let sp = stack.add(STACK_COUNT).sub(16);
         let prep = slice::from_raw_parts_mut(sp, 16);
         let cramp32_start_task_ptr = local_address_of!("cramp32_start_task");
