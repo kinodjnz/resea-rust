@@ -3,6 +3,7 @@ members = [
     "kernel",
     "init",
     "klib",
+    "syscall",
     "memintrinsics",
 ]
 

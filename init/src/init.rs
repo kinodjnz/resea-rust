@@ -1,4 +1,3 @@
-use crate::syscall;
 use core::arch::{asm, global_asm};
 use core::mem;
 use core::slice;
@@ -6,6 +5,7 @@ use klib::cycle;
 use klib::ipc::{Message, MessageType};
 use klib::macros::*;
 use klib::result::KResult;
+use syscall::syscall;
 
 const STACK_SIZE: usize = 4096;
 const STACK_COUNT: usize = STACK_SIZE / 4;

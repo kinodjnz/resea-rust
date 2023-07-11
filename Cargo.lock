@@ -7,6 +7,7 @@ name = "init"
 version = "0.1.0"
 dependencies = [
  "klib",
+ "syscall",
 ]
 
 [[package]]
@@ -19,6 +20,13 @@ version = "0.1.0"
 
 [[package]]
 name = "resea-rust"
+version = "0.1.0"
+dependencies = [
+ "klib",
+]
+
+[[package]]
+name = "syscall"
 version = "0.1.0"
 dependencies = [
  "klib",
