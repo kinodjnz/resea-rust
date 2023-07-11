@@ -20,11 +20,6 @@ enum GeneratorResponse {
 }
 
 #[repr(align(4))]
-struct AlignedU8 {
-    _data: u8,
-}
-
-#[repr(align(4))]
 struct AlignedArray<const N: usize> {
     data: [u8; N],
 }

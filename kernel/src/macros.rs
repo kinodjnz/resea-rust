@@ -1,5 +1,4 @@
 pub use crate::console::ConsoleWriter;
-pub use crate::local_address_of;
 pub use core::arch::asm;
 pub use core::mem;
 pub use klib::macros::*;

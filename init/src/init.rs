@@ -44,19 +44,6 @@ print1_task:
     jump {2}, t0
 "#, sym USER_STACKS, const STACK_SIZE, sym print1_task_rust);
 
-macro_rules! local_address_of {
-    ($symbol: expr) => {
-        {
-            let mut temp_addr: usize;
-            #[allow(unused_unsafe)]
-            unsafe {
-                asm!(concat!("lla {0}, ", $symbol), out(reg) temp_addr);
-            }
-            temp_addr
-        }
-    }
-}
-
 pub fn init_task_rust() {
     cycle::init();
     syscall::console_write(b"init task started\n");
