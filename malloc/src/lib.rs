@@ -4,8 +4,7 @@
 #![feature(asm_const)]
 #![feature(generators, generator_trait)]
 #![feature(core_intrinsics)]
-#![feature(maybe_uninit_uninit_array)]
-#![feature(sync_unsafe_cell)]
+#![feature(cell_update)]
 
 #[macro_use]
 extern crate klib;
@@ -13,8 +12,7 @@ extern crate klib;
 #[macro_use]
 extern crate syscall;
 
-mod generator;
-pub mod init;
+pub mod malloc;
 
 use core::panic::PanicInfo;
 #[panic_handler]

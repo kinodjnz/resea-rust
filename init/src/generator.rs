@@ -1,5 +1,5 @@
-use crate::init::{print_error, ConsoleMessage};
-use crate::print_error;
+use crate::init::ConsoleMessage;
+use ::syscall::error::print_error;
 use core::ops::{Generator, GeneratorState};
 use core::pin::Pin;
 use klib::ipc::{self, MessageType, Notifications};

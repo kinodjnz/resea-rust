@@ -8,7 +8,6 @@ use klib::result::KResult;
 const STACK_SIZE: usize = 512;
 const STACK_COUNT: usize = STACK_SIZE / 4;
 
-#[repr(align(512))]
 struct KernelStack {
     stack: [[u32; STACK_COUNT]; config::NUM_TASKS as usize],
 }

@@ -69,7 +69,7 @@ pub extern "C" fn handle_syscall(
     _a5: u32,
     _syscall_subid: u32,
     syscall_id: u32,
-) -> u32 {
+) -> u64 {
     let r = match syscall_id {
         i if i == Syscall::Nop.as_u32() => KResult::Ok(()),
         i if i == Syscall::SetTimer.as_u32() => handle_set_timer(a0),
@@ -97,7 +97,7 @@ pub extern "C" fn handle_syscall(
         _ => KResult::InvalidArg,
     };
     match r {
-        KResult::Ok(()) => 0,
-        e => e.err_as_u32(),
+        KResult::Ok(()) => (a1 as u64) << 32,
+        e => e.err_as_u32() as u64 | ((a1 as u64) << 32),
     }
 }

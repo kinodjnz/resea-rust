@@ -73,6 +73,13 @@ impl<T> KResult<T> {
             e => KResult::err_from_u32(e.err_as_u32()),
         }
     }
+
+    pub fn unwrap_or(self, default: T) -> T {
+        match self {
+            KResult::Ok(t) => t,
+            _ => default,
+        }
+    }
 }
 
 impl<T> ops::Try for KResult<T> {

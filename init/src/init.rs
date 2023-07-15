@@ -1,60 +1,72 @@
+use ::syscall::error::print_error;
 use core::arch::{asm, global_asm};
-use core::mem;
+use core::cell::Cell;
+use core::ptr;
 use core::slice;
+use ipc::malloc::AllocMessage;
 use klib::cycle;
 use klib::ipc::{Message, MessageType};
-use klib::macros::*;
 use klib::result::KResult;
 use syscall::syscall;
-
-const STACK_SIZE: usize = 4096;
-const STACK_COUNT: usize = STACK_SIZE / 4;
-
-#[repr(align(4096))]
-pub struct UserStacks {
-    _stack: [[u32; STACK_COUNT]; 3],
-}
-
-#[link_section = ".ubss"]
-pub static mut USER_STACKS: UserStacks = UserStacks {
-    _stack: [[0; STACK_COUNT]; 3],
-};
 
 global_asm!(r#"
     .section .text.init
     .global init_task
 init_task:
-    lla sp, {0} + {1}*1
-    jump {2}, t0
-"#, sym USER_STACKS, const STACK_SIZE, sym init_task_rust);
+    lla sp, __init_task_stack_end
+    jump {0}, t0
+"#, sym init_task_rust);
 
 global_asm!(r#"
     .section .text.init
     .global console_task
 console_task:
-    lla sp, {0} + {1}*2
-    jump {2}, t0
-"#, sym USER_STACKS, const STACK_SIZE, sym crate::generator::console_task);
+    lw sp, {0}
+    jump {1}, t0
+"#, sym CONSOLE_TASK_STACK, sym crate::generator::console_task);
 
 global_asm!(r#"
     .section .text.init
     .global print1_task
 print1_task:
-    lla sp, {0} + {1}*3
-    jump {2}, t0
-"#, sym USER_STACKS, const STACK_SIZE, sym print1_task_rust);
+    lw sp, {0}
+    jump {1}, t0
+"#, sym PRINT1_TASK_STACK, sym print1_task_rust);
+
+const MALLOC_TASK_TID: u32 = 2;
+const CONSOLE_TASK_TID: u32 = 3;
+const USER_TASK_START_TID: u32 = 4;
+
+static mut CONSOLE_TASK_STACK: Cell<*mut u8> = Cell::new(ptr::null_mut());
+static mut PRINT1_TASK_STACK: Cell<*mut u8> = Cell::new(ptr::null_mut());
+
+fn alloc(size: usize) -> *mut u8 {
+    let result = syscall::ipc_call(MALLOC_TASK_TID, &AllocMessage::request(size, 4));
+    match result {
+        KResult::Ok(response) => AllocMessage::parse_response(&response),
+        _ => ptr::null_mut(),
+    }
+}
 
 pub fn init_task_rust() {
     cycle::init();
     syscall::console_write(b"init task started\n");
-    let r = syscall::create_task(2, local_address_of!("console_task"));
+    let r = syscall::create_task(MALLOC_TASK_TID, local_address_of!("malloc_task"));
+    if r.is_err() {
+        syscall::console_write(b"create malloc task failed\n");
+    }
+    unsafe { CONSOLE_TASK_STACK.set(alloc(4096)) };
+    let r = syscall::create_task(CONSOLE_TASK_TID, local_address_of!("console_task"));
     if r.is_err() {
         syscall::console_write(b"create console task failed\n");
     }
-    let r = syscall::create_task(3, local_address_of!("print1_task"));
+    let next_user_task = USER_TASK_START_TID;
+    unsafe { PRINT1_TASK_STACK.set(alloc(4096)) };
+    let r = syscall::create_task(next_user_task, local_address_of!("print1_task"));
     if r.is_err() {
         syscall::console_write(b"create print1 task failed\n");
     }
+    // next_user_task += 1;
     print2_task()
 }
 
@@ -94,20 +106,6 @@ pub struct AlignedVarArray<'a> {
     pub data: &'a [u8],
 }
 
-#[macro_export]
-macro_rules! print_error {
-    ($message:expr, $err:expr) => {
-        print_error::<{ $message.len() + 8 }>($message, $err)
-    };
-}
-
-pub fn print_error<const N: usize>(format: &[u8], err: u32) {
-    let mut buf = [mem::MaybeUninit::uninit(); N];
-    let mut writer = BufWriter::new(&mut buf);
-    buf_fmt!(&mut writer, format, err);
-    syscall::console_write(writer.as_slice());
-}
-
 pub fn console_task_rust() {
     syscall::console_write(b"console task started\n");
     loop {
@@ -124,7 +122,7 @@ pub fn print1_task_rust() {
     syscall::console_write(b"print1 task started\n");
     loop {
         let message = ConsoleMessage::new(b"Hello, Resea\n");
-        match syscall::ipc_send(2, &message) {
+        match syscall::ipc_send(CONSOLE_TASK_TID, &message) {
             KResult::Ok(_) => (),
             err => print_error!(b"ipc_send failed: {}\n", err.err_as_u32()),
         };
@@ -137,7 +135,7 @@ pub fn print2_task() {
     cycle::wait(cycle::clock_hz() / 2);
     loop {
         let message = ConsoleMessage::new(b"Hello, RISC-V\n");
-        match syscall::ipc_send(2, &message) {
+        match syscall::ipc_send(CONSOLE_TASK_TID, &message) {
             KResult::Ok(_) => (),
             err => print_error!(b"ipc_send failed: {}\n", err.err_as_u32()),
         };

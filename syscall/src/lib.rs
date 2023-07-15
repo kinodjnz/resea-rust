@@ -7,4 +7,9 @@
 
 extern crate klib;
 
+#[macro_use]
+pub mod macros;
+
+pub mod error;
+pub mod payload;
 pub mod syscall;

@@ -6,6 +6,15 @@ version = 3
 name = "init"
 version = "0.1.0"
 dependencies = [
+ "ipc",
+ "klib",
+ "syscall",
+]
+
+[[package]]
+name = "ipc"
+version = "0.1.0"
+dependencies = [
  "klib",
  "syscall",
 ]
@@ -13,6 +22,15 @@ dependencies = [
 [[package]]
 name = "klib"
 version = "0.1.0"
+
+[[package]]
+name = "malloc"
+version = "0.1.0"
+dependencies = [
+ "ipc",
+ "klib",
+ "syscall",
+]
 
 [[package]]
 name = "memintrinsics"

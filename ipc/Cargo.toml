@@ -1,11 +1,11 @@
 [package]
-name = "init"
+name = "ipc"
 version = "0.1.0"
 edition = "2021"
 
 [lib]
-crate-type = ["staticlib"]
-name = "init"
+crate-type = ["rlib"]
+name = "ipc"
 
 [features]
 cramp32 = []
@@ -13,4 +13,3 @@ cramp32 = []
 [dependencies]
 klib = { path = "../klib" }
 syscall = { path = "../syscall" }
-ipc = { path = "../ipc" }

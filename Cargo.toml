@@ -4,6 +4,8 @@ members = [
     "init",
     "klib",
     "syscall",
+    "ipc",
+    "malloc",
     "memintrinsics",
 ]
 

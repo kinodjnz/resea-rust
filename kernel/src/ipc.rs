@@ -36,7 +36,10 @@ pub fn send(
             return KResult::Aborted;
         }
     }
-    task_pool.update_message(dst_task, |dst_msg| *dst_msg = *message);
+    task_pool.update_message(dst_task, |dst_msg| {
+        *dst_msg = *message;
+        dst_msg.src_tid = task_pool.current().tid();
+    });
     task_pool.resume_task(dst_task);
 
     KResult::Ok(())
