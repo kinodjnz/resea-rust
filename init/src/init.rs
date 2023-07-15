@@ -13,24 +13,27 @@ global_asm!(r#"
     .section .text.init
     .global init_task
 init_task:
-    lla sp, __init_task_stack_end
-    jump {0}, t0
+    auipc a0, %pcrel_hi(__init_task_stack_end)
+    addi  sp, a0, %pcrel_lo(init_task)
+    jump  {0}, t0
 "#, sym init_task_rust);
 
 global_asm!(r#"
     .section .text.init
     .global console_task
 console_task:
-    lw sp, {0}
-    jump {1}, t0
+    auipc a0, %pcrel_hi({0})
+    lw    sp, %pcrel_lo(console_task)(a0)
+    jump  {1}, t0
 "#, sym CONSOLE_TASK_STACK, sym crate::generator::console_task);
 
 global_asm!(r#"
     .section .text.init
     .global print1_task
 print1_task:
-    lw sp, {0}
-    jump {1}, t0
+    auipc a0, %pcrel_hi({0})
+    lw    sp, %pcrel_lo(print1_task)(a0)
+    jump  {1}, t0
 "#, sym PRINT1_TASK_STACK, sym print1_task_rust);
 
 const MALLOC_TASK_TID: u32 = 2;

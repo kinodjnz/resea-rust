@@ -13,26 +13,21 @@ SECTIONS
         . = ALIGN(4);
         *(.boot);
         *(.text);
+        *(.text.*);
         . = ALIGN(4);
     } >mem
 
-    .rodata : {
+    .data : {
         . = ALIGN(4);
         *(.rodata);
         *(.rodata.*);
         . = ALIGN(4);
-    } >mem
-
-    .sdata : {
         __sdata_start = .;
         . = ALIGN(4);
         *(.sdata);
         *(.sdata.*);
         . = ALIGN(4);
         __sdata_end = .;
-    } >mem
-
-    .data : {
         __data_start = .;
         . = ALIGN(4);
         *(.data);
@@ -74,5 +69,6 @@ SECTIONS
 
     /DISCARD/ : {
         *(.panic_info*);
+        *(.eh_frame*);
     }
 }

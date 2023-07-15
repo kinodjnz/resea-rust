@@ -12,8 +12,9 @@ global_asm!(r#"
     .section .text.init
     .global malloc_task
 malloc_task:
-    lla sp, __malloc_task_stack_end
-    jump {0}, t0
+    auipc a0, %pcrel_hi(__malloc_task_stack_end)
+    addi  sp, a0, %pcrel_lo(malloc_task)
+    jump  {0}, t0
 "#, sym malloc_task_rust);
 
 fn malloc_task_rust() {

@@ -27,6 +27,7 @@ KERNEL_ASM_OBJS = $(patsubst %.S,target/%.o,$(notdir $(KERNEL_ASM_SRCS)))
 AS = $(LLVM_PATH)/llvm-mc
 OBJDUMP = $(LLVM_PATH)/llvm-objdump
 OBJCOPY = $(LLVM_PATH)/llvm-objcopy
+STRIP = $(LLVM_PATH)/llvm-strip
 LD = $(LLVM_PATH)/ld.lld
 
 INSN_OPT = +zba,+zbs,+zbb,+xcramp
@@ -47,16 +48,19 @@ target/CACHEDIR.TAG target/$(TARGET)/release/libmemintrinsics.a target/$(TARGET)
 target/%.o: $(ARCH_DIR)/%.S target/CACHEDIR.TAG
 	$(AS) $(ASOPT) --filetype=obj -o $@ $<
 
-target/%.elf: $(KERNEL_LD) $(KERNEL_ASM_OBJS) target/$(TARGET)/release/libmemintrinsics.a target/$(TARGET)/release/libmalloc.a target/$(TARGET)/release/lib$(INIT).a target/$(TARGET)/release/lib%.a
-	$(LD) -T $+ -o $@ -nostdlib --relax
+target/%.elf.fat: $(KERNEL_LD) $(KERNEL_ASM_OBJS) target/$(TARGET)/release/libmemintrinsics.a target/$(TARGET)/release/libmalloc.a target/$(TARGET)/release/lib$(INIT).a target/$(TARGET)/release/lib%.a
+	$(LD) -T $+ -o $@ -nostdlib --relax --gc-sections --nmagic
 
-target/%.bin: target/%.elf
+target/%.elf: target/%.elf.fat
+	$(STRIP) --strip-all -o $@ $<
+
+target/%.bin: target/%.elf.fat
 	$(OBJCOPY) -O binary $< $@
 
 target/%.hex: target/%.bin
 	od -An -tx4 -v $< > $@
 
-target/%.dump.nocomment: target/%.elf
+target/%.dump.nocomment: target/%.elf.fat
 	$(OBJDUMP) -dSC --mattr=$(INSN_OPT) --print-imm-hex $< > $@
 
 target/%.dump: target/%.dump.nocomment
