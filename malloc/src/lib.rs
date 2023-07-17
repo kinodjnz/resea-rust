@@ -5,6 +5,7 @@
 #![feature(generators, generator_trait)]
 #![feature(core_intrinsics)]
 #![feature(cell_update)]
+// #![feature(offset_of)]
 
 #[macro_use]
 extern crate klib;

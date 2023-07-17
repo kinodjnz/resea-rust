@@ -1,12 +1,12 @@
 pub use crate::arch::Task;
 use crate::config;
 use crate::ipc;
-use crate::list;
-use crate::zeroed_array;
 use core::cell::Cell;
 use core::mem;
 use klib::ipc::{Message, MessageType, Notifications};
+use klib::list;
 use klib::result::KResult;
+use klib::zeroed_array;
 
 const TASK_PRIORITY_MAX: u32 = 8;
 const TASK_TIME_SLICE: i32 = 10; // should meet timer intr cycle

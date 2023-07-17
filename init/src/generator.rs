@@ -1,5 +1,6 @@
 use crate::init::ConsoleMessage;
 use ::syscall::error::print_error;
+use alloc::vec::Vec;
 use core::ops::{Generator, GeneratorState};
 use core::pin::Pin;
 use klib::ipc::{self, MessageType, Notifications};
@@ -19,17 +20,6 @@ enum GeneratorResponse {
     Message(ipc::Message),
 }
 
-#[repr(align(4))]
-struct AlignedArray<const N: usize> {
-    data: [u8; N],
-}
-
-impl<const N: usize> AlignedArray<N> {
-    fn new() -> AlignedArray<N> {
-        AlignedArray { data: [0u8; N] }
-    }
-}
-
 fn delayed_writer() -> impl Generator<GeneratorResponse, Yield = GeneratorCommand> {
     |response: GeneratorResponse| {
         let message = if let GeneratorResponse::Message(message) = response {
@@ -39,11 +29,9 @@ fn delayed_writer() -> impl Generator<GeneratorResponse, Yield = GeneratorComman
         };
         let src_text = ConsoleMessage::text_of(&message);
         syscall::console_write(src_text);
-        let mut text = AlignedArray::<20>::new();
-        let len = text.data.len().min(src_text.len());
-        text.data[0..len].copy_from_slice(&src_text[0..len]);
+        let text: Vec<u8> = src_text.iter().cloned().collect();
         yield GeneratorCommand::Sleep(100);
-        syscall::console_write(&text.data[0..len]);
+        syscall::console_write(&text);
     }
 }
 

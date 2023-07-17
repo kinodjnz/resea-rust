@@ -7,6 +7,8 @@
 #![feature(maybe_uninit_uninit_array)]
 #![feature(sync_unsafe_cell)]
 
+extern crate alloc;
+
 #[macro_use]
 extern crate klib;
 

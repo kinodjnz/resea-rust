@@ -18,7 +18,6 @@ mod boot;
 mod config;
 mod console;
 mod ipc;
-mod list;
 mod syscall;
 mod task;
 

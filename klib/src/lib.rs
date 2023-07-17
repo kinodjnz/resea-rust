@@ -10,6 +10,7 @@ pub mod buf_writer;
 pub mod cycle;
 pub mod fmt;
 pub mod ipc;
+pub mod list;
 pub mod mmio;
 pub mod result;
 pub mod syscall;

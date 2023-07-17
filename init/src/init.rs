@@ -1,9 +1,11 @@
 use ::syscall::error::print_error;
+use core::alloc::{GlobalAlloc, Layout};
 use core::arch::{asm, global_asm};
 use core::cell::Cell;
 use core::ptr;
 use core::slice;
 use ipc::malloc::AllocMessage;
+use ipc::tid;
 use klib::cycle;
 use klib::ipc::{Message, MessageType};
 use klib::result::KResult;
@@ -36,35 +38,58 @@ print1_task:
     jump  {1}, t0
 "#, sym PRINT1_TASK_STACK, sym print1_task_rust);
 
-const MALLOC_TASK_TID: u32 = 2;
-const CONSOLE_TASK_TID: u32 = 3;
-const USER_TASK_START_TID: u32 = 4;
-
 static mut CONSOLE_TASK_STACK: Cell<*mut u8> = Cell::new(ptr::null_mut());
 static mut PRINT1_TASK_STACK: Cell<*mut u8> = Cell::new(ptr::null_mut());
 
-fn alloc(size: usize) -> *mut u8 {
-    let result = syscall::ipc_call(MALLOC_TASK_TID, &AllocMessage::request(size, 4));
-    match result {
-        KResult::Ok(response) => AllocMessage::parse_response(&response),
-        _ => ptr::null_mut(),
+struct HeapAllocator;
+
+unsafe impl GlobalAlloc for HeapAllocator {
+    unsafe fn alloc(&self, layout: Layout) -> *mut u8 {
+        let result = syscall::ipc_call(
+            tid::MALLOC_TASK_TID,
+            &AllocMessage::request(layout.size(), layout.align()),
+        );
+        match result {
+            KResult::Ok(response) => AllocMessage::parse_response(&response),
+            err => {
+                print_error!(b"alloc failed: {}\n", err.err_as_u32());
+                ptr::null_mut()
+            }
+        }
     }
+
+    unsafe fn dealloc(&self, _ptr: *mut u8, _layout: Layout) {}
 }
+
+#[global_allocator]
+static ALLOCATOR: HeapAllocator = HeapAllocator {};
 
 pub fn init_task_rust() {
     cycle::init();
     syscall::console_write(b"init task started\n");
-    let r = syscall::create_task(MALLOC_TASK_TID, local_address_of!("malloc_task"));
+    let r = syscall::create_task(tid::MALLOC_TASK_TID, local_address_of!("malloc_task"));
     if r.is_err() {
         syscall::console_write(b"create malloc task failed\n");
     }
-    unsafe { CONSOLE_TASK_STACK.set(alloc(4096)) };
-    let r = syscall::create_task(CONSOLE_TASK_TID, local_address_of!("console_task"));
+    unsafe {
+        CONSOLE_TASK_STACK.set(
+            ALLOCATOR
+                .alloc(Layout::from_size_align_unchecked(4096, 4))
+                .add(4096),
+        )
+    };
+    let r = syscall::create_task(tid::CONSOLE_TASK_TID, local_address_of!("console_task"));
     if r.is_err() {
         syscall::console_write(b"create console task failed\n");
     }
-    let next_user_task = USER_TASK_START_TID;
-    unsafe { PRINT1_TASK_STACK.set(alloc(4096)) };
+    let next_user_task = tid::USER_TASK_START_TID;
+    unsafe {
+        PRINT1_TASK_STACK.set(
+            ALLOCATOR
+                .alloc(Layout::from_size_align_unchecked(4096, 4))
+                .add(4096),
+        )
+    };
     let r = syscall::create_task(next_user_task, local_address_of!("print1_task"));
     if r.is_err() {
         syscall::console_write(b"create print1 task failed\n");
@@ -125,7 +150,7 @@ pub fn print1_task_rust() {
     syscall::console_write(b"print1 task started\n");
     loop {
         let message = ConsoleMessage::new(b"Hello, Resea\n");
-        match syscall::ipc_send(CONSOLE_TASK_TID, &message) {
+        match syscall::ipc_send(tid::CONSOLE_TASK_TID, &message) {
             KResult::Ok(_) => (),
             err => print_error!(b"ipc_send failed: {}\n", err.err_as_u32()),
         };
@@ -138,7 +163,7 @@ pub fn print2_task() {
     cycle::wait(cycle::clock_hz() / 2);
     loop {
         let message = ConsoleMessage::new(b"Hello, RISC-V\n");
-        match syscall::ipc_send(CONSOLE_TASK_TID, &message) {
+        match syscall::ipc_send(tid::CONSOLE_TASK_TID, &message) {
             KResult::Ok(_) => (),
             err => print_error!(b"ipc_send failed: {}\n", err.err_as_u32()),
         };
