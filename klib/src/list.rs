@@ -90,6 +90,10 @@ impl<'a, T: LinkAdapter<LinkTag>, LinkTag: 'a> LinkedList<'a, T, LinkTag> {
             phantom_tag: PhantomData,
         }
     }
+
+    pub fn empty(&self) -> bool {
+        self.link_start.next.get().is_none()
+    }
 }
 
 pub struct ListIterator<'a, T: LinkAdapter<LinkTag> + 'static, LinkTag> {

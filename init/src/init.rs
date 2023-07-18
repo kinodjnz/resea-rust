@@ -4,7 +4,7 @@ use core::arch::{asm, global_asm};
 use core::cell::Cell;
 use core::ptr;
 use core::slice;
-use ipc::malloc::AllocMessage;
+use ipc::malloc::{AllocMessage, DeallocMessage};
 use ipc::tid;
 use klib::cycle;
 use klib::ipc::{Message, MessageType};
@@ -58,7 +58,15 @@ unsafe impl GlobalAlloc for HeapAllocator {
         }
     }
 
-    unsafe fn dealloc(&self, _ptr: *mut u8, _layout: Layout) {}
+    unsafe fn dealloc(&self, ptr: *mut u8, _layout: Layout) {
+        let result = syscall::ipc_call(tid::MALLOC_TASK_TID, &DeallocMessage::request(ptr));
+        match result {
+            KResult::Ok(_) => (),
+            err => {
+                print_error!(b"dealloc failed: {}\n", err.err_as_u32());
+            }
+        }
+    }
 }
 
 #[global_allocator]
