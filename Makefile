@@ -11,6 +11,7 @@ CARGO_BUILD_RUSTFLAGS=-C relocation-model=pic -C target-feature=$(COMMON_INSN_OP
 
 LLVM_PATH = ../../rust-lang/rust/build/aarch64-apple-darwin/llvm/bin
 # CARGO = ../../rust-lang/rust/build/aarch64-apple-darwin/stage2-tools-bin/cargo
+#CARGO = env CARGO_BUILD_RUSTFLAGS="$(CARGO_BUILD_RUSTFLAGS)" RUSTFLAGS="--cfg no_global_oom_handling" cargo
 CARGO = env CARGO_BUILD_RUSTFLAGS="$(CARGO_BUILD_RUSTFLAGS)" cargo
 
 # ARCH_DIR = kernel/src/arch/$(ARCH)

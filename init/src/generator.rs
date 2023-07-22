@@ -1,6 +1,7 @@
 use crate::init::ConsoleMessage;
 use ::syscall::error::print_error;
 use alloc::vec::Vec;
+use core::mem;
 use core::ops::{Generator, GeneratorState};
 use core::pin::Pin;
 use klib::ipc::{self, MessageType, Notifications};
@@ -30,6 +31,13 @@ fn delayed_writer() -> impl Generator<GeneratorResponse, Yield = GeneratorComman
         let src_text = ConsoleMessage::text_of(&message);
         syscall::console_write(src_text);
         let text: Vec<u8> = src_text.iter().cloned().collect();
+        print_error!(b"text: {}\n", unsafe {
+            mem::transmute::<*const u8, u32>(text.as_ptr())
+        });
+        let text2: Vec<u8> = src_text.iter().cloned().collect();
+        print_error!(b"text2: {}\n", unsafe {
+            mem::transmute::<*const u8, u32>(text2.as_ptr())
+        });
         yield GeneratorCommand::Sleep(100);
         syscall::console_write(&text);
     }

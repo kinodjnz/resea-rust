@@ -1,4 +1,5 @@
 use ::syscall::error::print_error;
+use alloc::alloc;
 use core::alloc::{GlobalAlloc, Layout};
 use core::arch::{asm, global_asm};
 use core::cell::Cell;
@@ -80,11 +81,7 @@ pub fn init_task_rust() {
         syscall::console_write(b"create malloc task failed\n");
     }
     unsafe {
-        CONSOLE_TASK_STACK.set(
-            ALLOCATOR
-                .alloc(Layout::from_size_align_unchecked(4096, 4))
-                .add(4096),
-        )
+        CONSOLE_TASK_STACK.set(alloc::alloc(Layout::from_size_align_unchecked(4096, 4)).add(4096))
     };
     let r = syscall::create_task(tid::CONSOLE_TASK_TID, local_address_of!("console_task"));
     if r.is_err() {
@@ -92,11 +89,7 @@ pub fn init_task_rust() {
     }
     let next_user_task = tid::USER_TASK_START_TID;
     unsafe {
-        PRINT1_TASK_STACK.set(
-            ALLOCATOR
-                .alloc(Layout::from_size_align_unchecked(4096, 4))
-                .add(4096),
-        )
+        PRINT1_TASK_STACK.set(alloc::alloc(Layout::from_size_align_unchecked(4096, 4)).add(4096))
     };
     let r = syscall::create_task(next_user_task, local_address_of!("print1_task"));
     if r.is_err() {
