@@ -6,6 +6,7 @@ use core::mem;
 use core::ptr;
 use ipc::malloc;
 use klib::list;
+use klib::list::ops::*;
 use klib::macros::*;
 use klib::result::KResult;
 
@@ -47,8 +48,9 @@ fn malloc_task_rust() {
 struct HeapAllocator {
     brk: Cell<*mut u32>,
     small_used: Cell<u32>,
-    small_free_chunks: [list::ListLink<Chunk>; Self::NUM_SMALL_CHUNKS],
-    alloc_chunks: [list::ListLink<Chunk>; Self::NUM_TASKS],
+    small_free_chunks: [list::SingleListLink<Chunk>; Self::NUM_SMALL_CHUNKS],
+    // large_free_chunks: [list::ListLink<LargeChunk>; Self::NUM_LARGE_CHUNKS],
+    alloc_chunks: [list::SingleListLink<Chunk>; Self::NUM_TASKS],
 }
 
 static mut HEAP_ALLOCATOR: HeapAllocator = HeapAllocator::zeroed();
@@ -151,8 +153,8 @@ impl HeapAllocator {
         Self {
             brk: Cell::new(ptr::null_mut()),
             small_used: Cell::new(0),
-            small_free_chunks: zeroed_array!(list::ListLink<Chunk>, Self::NUM_SMALL_CHUNKS),
-            alloc_chunks: zeroed_array!(list::ListLink<Chunk>, Self::NUM_TASKS),
+            small_free_chunks: zeroed_array!(list::SingleListLink<Chunk>, Self::NUM_SMALL_CHUNKS),
+            alloc_chunks: zeroed_array!(list::SingleListLink<Chunk>, Self::NUM_TASKS),
         }
     }
 
@@ -213,11 +215,8 @@ impl HeapAllocator {
 
     fn dealloc(&self, ptr: *mut u8, tid: u32) {
         let chunk = self.ptr_to_chunk(ptr);
-        if chunk.size.get().size_word() >= Self::LARGE_CHUNK_MIN_SIZE_WORD {
-            return;
-        } else {
-            self.dealloc_small(chunk, tid)
-        }
+        self.list_for_alloc_chunks(tid).remove(chunk);
+        self.free_and_combine(chunk);
     }
 
     fn ptr_to_chunk(&self, ptr: *mut u8) -> &'static Chunk {
@@ -227,12 +226,12 @@ impl HeapAllocator {
         }
     }
 
-    fn list_for_small_free_chunks(&self, index: usize) -> list::LinkedList<'_, Chunk, ChunkTag> {
-        list::LinkedList::new(unsafe { &self.small_free_chunks.get_unchecked(index) })
+    fn list_for_small_free_chunks(&self, index: usize) -> list::LinkedStack<'_, Chunk, ChunkTag> {
+        list::LinkedStack::new(unsafe { &self.small_free_chunks.get_unchecked(index) })
     }
 
-    fn list_for_alloc_chunks(&self, tid: u32) -> list::LinkedList<'_, Chunk, ChunkTag> {
-        list::LinkedList::new(unsafe { &self.alloc_chunks.get_unchecked(tid as usize) })
+    fn list_for_alloc_chunks(&self, tid: u32) -> list::LinkedStack<'_, Chunk, ChunkTag> {
+        list::LinkedStack::new(unsafe { &self.alloc_chunks.get_unchecked(tid as usize) })
     }
 
     fn alloc_unaligned_small(&self, size: usize, tid: u32) -> KResult<*mut u8> {
@@ -256,7 +255,7 @@ impl HeapAllocator {
                         .update(|_| SizeField(next_chunk_size_word * Self::WORD_SIZE));
                     self.set_free_size_word(next_chunk, next_chunk_size_word);
                     self.mark_as_free_chunk(next_chunk, next_chunk_size_word);
-                    self.add_to_free_chunks(next_chunk, next_chunk_size_word);
+                    self.add_to_small_free_chunks(next_chunk, next_chunk_size_word);
                     needed_chunk_size_word
                 } else {
                     chunk_size_word
@@ -271,7 +270,7 @@ impl HeapAllocator {
             (chunk, needed_chunk_size_word)
         };
         self.mark_as_alloc_chunk(chunk, chunk_size_word);
-        self.list_for_alloc_chunks(tid).push_back(chunk);
+        self.list_for_alloc_chunks(tid).push_front(chunk);
         KResult::Ok(chunk.data.as_ptr() as *const u8 as *mut u8)
     }
 
@@ -345,7 +344,7 @@ impl HeapAllocator {
         }
     }
 
-    fn add_to_free_chunks(&self, chunk: &'static Chunk, chunk_size_word: usize) {
+    fn add_to_small_free_chunks(&self, chunk: &'static Chunk, chunk_size_word: usize) {
         let index = Self::small_chunk_size_word_to_index(chunk_size_word);
         self.list_for_small_free_chunks(index).push_front(chunk);
         self.small_used.update(|u| u | (1 << index));
@@ -377,18 +376,23 @@ impl HeapAllocator {
             .size
             .update(|s| s.with_size_word(new_chunk_size_word).with_deallocated());
         self.set_free_size_word(chunk, new_chunk_size_word);
+        self.mark_as_free_chunk(chunk, new_chunk_size_word);
         if new_chunk_size_word >= Self::LARGE_CHUNK_MIN_SIZE_WORD {
             // TODO: large chunk
-            chunk.size.update(|s| s.with_allocated());
-            self.mark_as_alloc_chunk(chunk, new_chunk_size_word);
+            // chunk.size.update(|s| s.with_allocated());
+            // self.mark_as_alloc_chunk(chunk, new_chunk_size_word);
+            self.add_to_large_free_chunks(chunk, new_chunk_size_word);
         } else {
-            self.mark_as_free_chunk(chunk, new_chunk_size_word);
-            self.add_to_free_chunks(chunk, new_chunk_size_word);
+            self.add_to_small_free_chunks(chunk, new_chunk_size_word);
         }
     }
 
-    fn dealloc_small(&self, chunk: &'static Chunk, tid: u32) {
-        self.list_for_alloc_chunks(tid).remove(chunk);
-        self.free_and_combine(chunk);
+    fn add_to_large_free_chunks(&self, chunk: &'static Chunk, chunk_size_word: usize) {
+        chunk.size.update(|s| s.with_allocated());
+        self.mark_as_alloc_chunk(chunk, chunk_size_word);
+
+        // let index = Self::large_chunk_size_word_to_index(chunk_size_word);
+        // self.list_for_small_free_chunks(index).push_front(chunk);
+        // self.small_used.update(|u| u | (1 << index));
     }
 }

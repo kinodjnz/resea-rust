@@ -5,6 +5,7 @@ use core::cell::Cell;
 use core::mem;
 use klib::ipc::{Message, MessageType, Notifications};
 use klib::list;
+use klib::list::ops::*;
 use klib::result::KResult;
 use klib::zeroed_array;
 
