@@ -47,8 +47,8 @@ fn malloc_task_rust() {
 struct HeapAllocator {
     brk: Cell<*mut u32>,
     small_used: Cell<u32>,
-    small_free_chunks: [list::ListLink<SmallChunk>; Self::NUM_SMALL_CHUNKS],
-    small_alloc_chunks: [list::ListLink<SmallChunk>; Self::NUM_TASKS],
+    small_free_chunks: [list::ListLink<Chunk>; Self::NUM_SMALL_CHUNKS],
+    alloc_chunks: [list::ListLink<Chunk>; Self::NUM_TASKS],
 }
 
 static mut HEAP_ALLOCATOR: HeapAllocator = HeapAllocator::zeroed();
@@ -97,41 +97,38 @@ impl SizeField {
 }
 
 #[repr(C)]
-struct SmallChunk {
+struct Chunk {
     size: Cell<SizeField>,
-    link: list::ListLink<SmallChunk>,
+    link: list::ListLink<Chunk>,
     data: [u32; 0],
 }
 
-type Chunk = SmallChunk;
-
 #[repr(C)]
-struct LargestChunk {
+struct LargeChunk {
     size: Cell<SizeField>,
-    link: list::ListLink<SmallChunk>,
+    link: list::ListLink<Chunk>,
     data: [u32; 0],
 }
 
 trait AnyChunk {}
 
-impl AnyChunk for SmallChunk {}
+impl AnyChunk for Chunk {}
 
-impl AnyChunk for LargestChunk {}
+impl AnyChunk for LargeChunk {}
 
-struct SmallChunkTag;
+struct ChunkTag;
 
-const SMALL_CHUNK_LINK_OFFSET: usize = 4; /*mem::offset_of!(SmallChunk, link)*/
+const CHUNK_LINK_OFFSET: usize = 4; /*mem::offset_of!(Chunk, link)*/
 const CHUNK_DATA_OFFSET_WORD: usize = 3; /*mem::offset_of!(Chunk, data) / WORD_SIZE */
 
-impl list::LinkAdapter<SmallChunkTag> for SmallChunk {
-    fn link(&self) -> &list::ListLink<SmallChunk> {
+impl list::LinkAdapter<ChunkTag> for Chunk {
+    fn link(&self) -> &list::ListLink<Chunk> {
         &self.link
     }
-    fn from_link(link: &list::ListLink<SmallChunk>) -> &SmallChunk {
+    fn from_link(link: &list::ListLink<Chunk>) -> &Chunk {
         unsafe {
-            mem::transmute::<usize, &SmallChunk>(
-                mem::transmute::<&list::ListLink<SmallChunk>, usize>(link)
-                    - SMALL_CHUNK_LINK_OFFSET,
+            mem::transmute::<usize, &Chunk>(
+                mem::transmute::<&list::ListLink<Chunk>, usize>(link) - CHUNK_LINK_OFFSET,
             )
         }
     }
@@ -141,21 +138,21 @@ impl HeapAllocator {
     const NUM_TASKS: usize = 64;
     const MIN_ALIGN: usize = 8;
     const WORD_SIZE: usize = 4;
-    const SMALL_CHUNK_SIZE_WORD: usize = mem::size_of::<SmallChunk>() / Self::WORD_SIZE;
-    const MIN_CHUNK_SIZE_WORD: usize = Self::SMALL_CHUNK_SIZE_WORD + 12;
+    const CHUNK_SIZE_WORD: usize = mem::size_of::<Chunk>() / Self::WORD_SIZE;
+    const MIN_CHUNK_SIZE_WORD: usize = Self::CHUNK_SIZE_WORD + 12;
     const NUM_SMALL_CHUNKS: usize = 32;
     const LARGE_CHUNK_MIN_SIZE_WORD: usize =
-        Self::SMALL_CHUNK_SIZE_WORD + Self::LARGE_CHUNK_MIN_REQ_SIZE_WORD;
+        Self::CHUNK_SIZE_WORD + Self::LARGE_CHUNK_MIN_REQ_SIZE_WORD;
     const LARGE_CHUNK_MIN_REQ_SIZE_WORD: usize = 3 + 2 * 32;
     const LARGE_CHUNK_MIN_REQ_SIZE: usize = Self::LARGE_CHUNK_MIN_REQ_SIZE_WORD * Self::WORD_SIZE;
-    const LARGEST_CHUNK_SIZE_WORD: usize = mem::size_of::<LargestChunk>() / Self::WORD_SIZE;
+    const LARGE_CHUNK_SIZE_WORD: usize = mem::size_of::<LargeChunk>() / Self::WORD_SIZE;
 
     const fn zeroed() -> Self {
         Self {
             brk: Cell::new(ptr::null_mut()),
             small_used: Cell::new(0),
-            small_free_chunks: zeroed_array!(list::ListLink<SmallChunk>, Self::NUM_SMALL_CHUNKS),
-            small_alloc_chunks: zeroed_array!(list::ListLink<SmallChunk>, Self::NUM_TASKS),
+            small_free_chunks: zeroed_array!(list::ListLink<Chunk>, Self::NUM_SMALL_CHUNKS),
+            alloc_chunks: zeroed_array!(list::ListLink<Chunk>, Self::NUM_TASKS),
         }
     }
 
@@ -200,8 +197,8 @@ impl HeapAllocator {
 
     fn alloc_unaligned_large(&self, size: usize, _tid: u32) -> KResult<*mut u8> {
         let chunk_size_word =
-            Self::LARGEST_CHUNK_SIZE_WORD + (size + Self::WORD_SIZE - 1) / Self::WORD_SIZE;
-        let chunk: &'static LargestChunk = self.alloc_chunk(chunk_size_word);
+            Self::LARGE_CHUNK_SIZE_WORD + (size + Self::WORD_SIZE - 1) / Self::WORD_SIZE;
+        let chunk: &'static LargeChunk = self.alloc_chunk(chunk_size_word);
         self.mark_as_alloc_chunk(chunk, chunk_size_word);
         KResult::Ok(chunk.data.as_ptr() as *mut u8)
     }
@@ -230,18 +227,12 @@ impl HeapAllocator {
         }
     }
 
-    fn list_for_small_free_chunks(
-        &self,
-        index: usize,
-    ) -> list::LinkedList<'_, SmallChunk, SmallChunkTag> {
+    fn list_for_small_free_chunks(&self, index: usize) -> list::LinkedList<'_, Chunk, ChunkTag> {
         list::LinkedList::new(unsafe { &self.small_free_chunks.get_unchecked(index) })
     }
 
-    fn list_for_small_alloc_chunks(
-        &self,
-        tid: u32,
-    ) -> list::LinkedList<'_, SmallChunk, SmallChunkTag> {
-        list::LinkedList::new(unsafe { &self.small_alloc_chunks.get_unchecked(tid as usize) })
+    fn list_for_alloc_chunks(&self, tid: u32) -> list::LinkedList<'_, Chunk, ChunkTag> {
+        list::LinkedList::new(unsafe { &self.alloc_chunks.get_unchecked(tid as usize) })
     }
 
     fn alloc_unaligned_small(&self, size: usize, tid: u32) -> KResult<*mut u8> {
@@ -253,47 +244,45 @@ impl HeapAllocator {
             let chunk = self.list_for_small_free_chunks(index).pop_front().unwrap();
             let chunk_size_word: usize = chunk.size.get().size_word();
             self.remove_from_free_chunks(chunk, chunk_size_word);
-            let chunk_size_word = if chunk_size_word - needed_chunk_size_word
-                >= Self::MIN_CHUNK_SIZE_WORD
-            {
-                let next_chunk_size_word = chunk_size_word - needed_chunk_size_word;
-                let next_chunk = unsafe {
-                    let chunk_ptr = mem::transmute::<&_, *const u32>(chunk);
-                    mem::transmute::<*const u32, &SmallChunk>(chunk_ptr.add(needed_chunk_size_word))
+            let chunk_size_word =
+                if chunk_size_word - needed_chunk_size_word >= Self::MIN_CHUNK_SIZE_WORD {
+                    let next_chunk_size_word = chunk_size_word - needed_chunk_size_word;
+                    let next_chunk = unsafe {
+                        let chunk_ptr = mem::transmute::<&_, *const u32>(chunk);
+                        mem::transmute::<*const u32, &Chunk>(chunk_ptr.add(needed_chunk_size_word))
+                    };
+                    next_chunk
+                        .size
+                        .update(|_| SizeField(next_chunk_size_word * Self::WORD_SIZE));
+                    self.set_free_size_word(next_chunk, next_chunk_size_word);
+                    self.mark_as_free_chunk(next_chunk, next_chunk_size_word);
+                    self.add_to_free_chunks(next_chunk, next_chunk_size_word);
+                    needed_chunk_size_word
+                } else {
+                    chunk_size_word
                 };
-                next_chunk
-                    .size
-                    .update(|_| SizeField(next_chunk_size_word * Self::WORD_SIZE));
-                self.set_free_size_word(next_chunk, next_chunk_size_word);
-                self.mark_as_free_chunk(next_chunk, next_chunk_size_word);
-                self.add_to_free_chunks(next_chunk, next_chunk_size_word);
-                needed_chunk_size_word
-            } else {
-                chunk_size_word
-            };
             chunk.size.update(|s| s.with_allocated());
             (chunk, chunk_size_word)
         } else {
-            let chunk: &'static SmallChunk = self.alloc_chunk::<SmallChunk>(needed_chunk_size_word);
+            let chunk: &'static Chunk = self.alloc_chunk::<Chunk>(needed_chunk_size_word);
             chunk
                 .size
                 .update(|s| s.with_size_word(needed_chunk_size_word).with_allocated());
             (chunk, needed_chunk_size_word)
         };
         self.mark_as_alloc_chunk(chunk, chunk_size_word);
-        self.list_for_small_alloc_chunks(tid).push_back(chunk);
+        self.list_for_alloc_chunks(tid).push_back(chunk);
         KResult::Ok(chunk.data.as_ptr() as *const u8 as *mut u8)
     }
 
-    fn set_free_size_word(&self, chunk: &SmallChunk, size_word: usize) {
+    fn set_free_size_word(&self, chunk: &Chunk, size_word: usize) {
         unsafe {
-            let chunk_ptr: *const Cell<u32> =
-                mem::transmute::<&SmallChunk, *const Cell<u32>>(chunk);
+            let chunk_ptr: *const Cell<u32> = mem::transmute::<&Chunk, *const Cell<u32>>(chunk);
             (*chunk_ptr.add(size_word - 1)).set((size_word * Self::WORD_SIZE) as u32);
         }
     }
 
-    fn mark_as_free_chunk(&self, chunk: &'static SmallChunk, size_word: usize) {
+    fn mark_as_free_chunk(&self, chunk: &'static Chunk, size_word: usize) {
         self.get_next_size_field(chunk, size_word)
             .update(|s| s.with_prev_chunk_free());
     }
@@ -317,40 +306,38 @@ impl HeapAllocator {
 
     fn get_next_chunk(
         &self,
-        chunk: &'static SmallChunk,
+        chunk: &'static Chunk,
         size_word: usize,
-    ) -> (Option<&'static SmallChunk>, usize) {
+    ) -> (Option<&'static Chunk>, usize) {
         unsafe {
             let chunk_ptr: *const Cell<SizeField> =
-                mem::transmute::<&SmallChunk, *const Cell<SizeField>>(chunk);
+                mem::transmute::<&Chunk, *const Cell<SizeField>>(chunk);
             let next_size_word_ptr = chunk_ptr.add(size_word);
             let next_size_word = (*next_size_word_ptr).get().size_word();
             if next_size_word == 0 {
                 (Option::None, 0)
             } else {
                 (
-                    Option::Some(
-                        mem::transmute::<*const Cell<SizeField>, &'static SmallChunk>(
-                            next_size_word_ptr,
-                        ),
-                    ),
+                    Option::Some(mem::transmute::<*const Cell<SizeField>, &'static Chunk>(
+                        next_size_word_ptr,
+                    )),
                     next_size_word,
                 )
             }
         }
     }
 
-    fn get_prev_chunk(chunk: &SmallChunk) -> (&SmallChunk, usize) {
+    fn get_prev_chunk(chunk: &Chunk) -> (&Chunk, usize) {
         unsafe {
-            let chunk_ptr: *const u32 = mem::transmute::<&SmallChunk, *const u32>(chunk);
+            let chunk_ptr: *const u32 = mem::transmute::<&Chunk, *const u32>(chunk);
             let prev_chunk_size_word = (*chunk_ptr.sub(1) as usize) / Self::WORD_SIZE;
-            let prev_chunk: &SmallChunk =
-                mem::transmute::<*const u32, &SmallChunk>(chunk_ptr.sub(prev_chunk_size_word));
+            let prev_chunk: &Chunk =
+                mem::transmute::<*const u32, &Chunk>(chunk_ptr.sub(prev_chunk_size_word));
             (prev_chunk, prev_chunk_size_word)
         }
     }
 
-    fn remove_from_free_chunks(&self, chunk: &'static SmallChunk, chunk_size_word: usize) {
+    fn remove_from_free_chunks(&self, chunk: &'static Chunk, chunk_size_word: usize) {
         let index = Self::small_chunk_size_word_to_index(chunk_size_word);
         self.list_for_small_free_chunks(index).remove(chunk);
         if self.list_for_small_free_chunks(index).empty() {
@@ -358,13 +345,13 @@ impl HeapAllocator {
         }
     }
 
-    fn add_to_free_chunks(&self, chunk: &'static SmallChunk, chunk_size_word: usize) {
+    fn add_to_free_chunks(&self, chunk: &'static Chunk, chunk_size_word: usize) {
         let index = Self::small_chunk_size_word_to_index(chunk_size_word);
         self.list_for_small_free_chunks(index).push_front(chunk);
         self.small_used.update(|u| u | (1 << index));
     }
 
-    fn free_and_combine(&self, chunk: &'static SmallChunk) {
+    fn free_and_combine(&self, chunk: &'static Chunk) {
         let chunk_size_word = chunk.size.get().size_word();
         let next_chunk_size_word = if let (Some(next_chunk), next_chunk_size_word) =
             self.get_next_chunk(chunk, chunk_size_word)
@@ -400,8 +387,8 @@ impl HeapAllocator {
         }
     }
 
-    fn dealloc_small(&self, chunk: &'static SmallChunk, tid: u32) {
-        self.list_for_small_alloc_chunks(tid).remove(chunk);
+    fn dealloc_small(&self, chunk: &'static Chunk, tid: u32) {
+        self.list_for_alloc_chunks(tid).remove(chunk);
         self.free_and_combine(chunk);
     }
 }
