@@ -49,6 +49,20 @@ impl<'a, T: LinkAdapter<LinkTag>, LinkTag: 'a> LinkedList<'a, T, LinkTag> {
         }
     }
 
+    pub fn push_front(&mut self, elem: &'static T) {
+        if let Some(next) = self.link_start.next.get() {
+            elem.link().next.set(Some(next));
+            elem.link().prev.set(None);
+            next.prev.set(Some(elem.link()));
+            self.link_start.next.set(Some(elem.link()));
+        } else {
+            elem.link().next.set(None);
+            elem.link().prev.set(None);
+            self.link_start.next.set(Some(elem.link()));
+            self.link_start.prev.set(Some(elem.link()));
+        }
+    }
+
     pub fn pop_front(&mut self) -> Option<&'static T> {
         if let Some(front) = self.link_start.next.get() {
             if let Some(next) = front.next.get() {

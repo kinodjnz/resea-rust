@@ -360,7 +360,7 @@ impl HeapAllocator {
 
     fn add_to_free_chunks(&self, chunk: &'static SmallChunk, chunk_size_word: usize) {
         let index = Self::small_chunk_size_word_to_index(chunk_size_word);
-        self.list_for_small_free_chunks(index).push_back(chunk);
+        self.list_for_small_free_chunks(index).push_front(chunk);
         self.small_used.update(|u| u | (1 << index));
     }
 
