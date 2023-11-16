@@ -1,7 +1,7 @@
 use crate::task::{NotificationMessage, TaskOps, TaskPool, TaskRef, TaskState};
 use core::u32;
 use klib::ipc::{IpcFlags, Message, Notifications};
-use klib::list::ops::*;
+use klib::list::RemovableLinkedStackOps;
 use klib::result::KResult;
 
 pub struct IpcSrcTask;

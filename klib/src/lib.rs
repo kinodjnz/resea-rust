@@ -7,6 +7,7 @@
 pub mod macros;
 
 pub mod buf_writer;
+#[cfg(target_arch="riscv32")]
 pub mod cycle;
 pub mod fmt;
 pub mod ipc;

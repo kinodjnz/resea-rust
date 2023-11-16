@@ -41,6 +41,9 @@ all: target/$(NAME).bin target/$(NAME).dump target/kernel.elf
 fmt:
 	cargo +nightly fmt
 
+test:
+	cargo +nightly test --lib --features cramp32 --target aarch64-apple-darwin
+
 target/CACHEDIR.TAG target/$(TARGET)/release/libmemintrinsics.a target/$(TARGET)/release/libmalloc.a target/$(TARGET)/release/lib$(NAME).a target/$(TARGET)/release/lib$(INIT).a: $(KERNEL_SRCS)
 	$(CARGO) build --features cramp32 --release
 #	$(CARGO) build --features $(ARCH) --release
