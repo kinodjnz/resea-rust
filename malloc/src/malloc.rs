@@ -49,9 +49,9 @@ fn malloc_task_rust() {
 struct HeapAllocator {
     brk: Cell<*mut u32>,
     small_used: Cell<u32>,
-    small_free_chunks: [list::RemovableStartLink<Chunk>; Self::NUM_SMALL_CHUNKS],
+    small_free_chunks: [list::RemovableStartLink<'static, Chunk>; Self::NUM_SMALL_CHUNKS],
     // large_free_chunks: [list::ListLink<LargeChunk>; Self::NUM_LARGE_CHUNKS],
-    alloc_chunks: [list::RemovableStartLink<Chunk>; Self::NUM_TASKS],
+    alloc_chunks: [list::RemovableStartLink<'static, Chunk>; Self::NUM_TASKS],
 }
 
 static mut HEAP_ALLOCATOR: HeapAllocator = HeapAllocator::zeroed();
@@ -102,14 +102,14 @@ impl SizeField {
 #[repr(C)]
 struct Chunk {
     size: Cell<SizeField>,
-    link: list::ListLink<Chunk>,
+    link: list::ListLink<'static, Chunk>,
     data: [u32; 0],
 }
 
 #[repr(C)]
 struct LargeChunk {
     size: Cell<SizeField>,
-    link: list::ListLink<Chunk>,
+    link: list::ListLink<'static, Chunk>,
     data: [u32; 0],
 }
 
@@ -124,14 +124,14 @@ struct ChunkTag;
 const CHUNK_LINK_OFFSET: usize = 4; /*mem::offset_of!(Chunk, link)*/
 const CHUNK_DATA_OFFSET_WORD: usize = 3; /*mem::offset_of!(Chunk, data) / WORD_SIZE */
 
-impl list::LinkAdapter<ChunkTag> for Chunk {
-    fn link(&self) -> &list::ListLink<Chunk> {
+impl list::LinkAdapter<'static, ChunkTag> for Chunk {
+    fn link(&self) -> &list::ListLink<'static, Chunk> {
         &self.link
     }
-    fn from_link(link: &list::ListLink<Chunk>) -> &Chunk {
+    fn from_link<'a>(link: &'a list::ListLink<'static, Chunk>) -> &'a Chunk {
         unsafe {
             mem::transmute::<usize, &Chunk>(
-                mem::transmute::<&list::ListLink<Chunk>, usize>(link) - CHUNK_LINK_OFFSET,
+                mem::transmute::<&list::ListLink<'static, Chunk>, usize>(link) - CHUNK_LINK_OFFSET,
             )
         }
     }
@@ -228,11 +228,11 @@ impl HeapAllocator {
         }
     }
 
-    fn list_for_small_free_chunks(&self, index: usize) -> list::RemovableLinkedStack<'_, Chunk, ChunkTag> {
+    fn list_for_small_free_chunks(&self, index: usize) -> list::RemovableLinkedStack<'_, 'static, Chunk, ChunkTag> {
         list::RemovableLinkedStack::new(unsafe { &self.small_free_chunks.get_unchecked(index) })
     }
 
-    fn list_for_alloc_chunks(&self, tid: u32) -> list::RemovableLinkedStack<'_, Chunk, ChunkTag> {
+    fn list_for_alloc_chunks(&self, tid: u32) -> list::RemovableLinkedStack<'_, 'static, Chunk, ChunkTag> {
         list::RemovableLinkedStack::new(unsafe { &self.alloc_chunks.get_unchecked(tid as usize) })
     }
 

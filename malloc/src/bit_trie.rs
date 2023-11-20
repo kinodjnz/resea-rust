@@ -3,16 +3,17 @@ use core::cell::Cell;
 use core::mem;
 
 #[repr(C)]
-pub struct BitTrieRoot<const BPL: usize, T: 'static> {
-    root: Cell<Option<&'static BitTrieLink<BPL, T>>>,
+pub struct BitTrieRoot<'s, const NCPL: usize, T: 's> {
+    // NCPL: Number of Children Per Link
+    root: Cell<Option<&'s BitTrieLink<'s, NCPL, T>>>,
     shift: usize,
 }
 
-impl<const BPL: usize, T: 'static> BitTrieRoot<BPL, T> {
+impl<'s, const NCPL: usize, T: 's> BitTrieRoot<'s, NCPL, T> {
     pub fn new(max_data_bits: usize) -> Self {
         Self {
             root: Cell::new(None),
-            shift: max_data_bits - BPL,
+            shift: max_data_bits - NCPL.ilog2() as usize,
         }
     }
 }
@@ -20,68 +21,78 @@ impl<const BPL: usize, T: 'static> BitTrieRoot<BPL, T> {
 pub struct ChainTag;
 
 #[repr(C)]
-pub struct BitTrieLink<const BPL: usize, T: 'static> {
-    chain: list::SingleListLink<T>,
-    parent: Cell<Option<&'static BitTrieLink<BPL, T>>>,
-    children: [Cell<Option<&'static BitTrieLink<BPL, T>>>; BPL],
+#[derive(Debug, Eq, PartialEq)]
+pub struct BitTrieLink<'s, const NCPL: usize, T: 's> {
+    chain: list::SingleListLink<'s, T>,
+    parent: Cell<Option<&'s BitTrieLink<'s, NCPL, T>>>,
+    children: [Cell<Option<&'s BitTrieLink<'s, NCPL, T>>>; NCPL],
 }
 
-impl<const BPL: usize, T: 'static> BitTrieLink<BPL, T> {
-    pub const fn init(children: [Cell<Option<&'static BitTrieLink<BPL, T>>>; BPL]) -> Self {
+impl<'s, const NCPL: usize, T: 's> BitTrieLink<'s, NCPL, T> {
+    pub const fn init(children: [Cell<Option<&'s BitTrieLink<'s, NCPL, T>>>; NCPL]) -> Self {
         Self {
             chain: list::SingleListLink::zeroed(),
             parent: Cell::new(Option::None),
             children,
         }
     }
-}
 
-#[repr(C)]
-pub struct BitTrieChain<T: 'static> {
-    list_link: list::SingleListLink<T>,
-}
-
-#[repr(C)]
-pub struct ListLink<T: 'static> {
-    list_link: list::ListLink<T>,
-}
-
-pub trait BitTrieLinkAdapter<const BPL: usize>: list::SingleLinkAdapter<ChainTag> {
-    fn link(&self) -> &list::SingleListLink<Self>
-    where
-        Self: Sized
-    {
-        unsafe {
-            &mem::transmute::<&BitTrieLink<BPL, Self>, &BitTrieChain<Self>>(self.bit_trie_link()).list_link
+    fn clear_trie_link(&self) {
+        self.parent.set(None);
+        for i in 0..NCPL {
+            unsafe {
+                self.children.get_unchecked(i).set(None);
+            }
         }
     }
-    fn from_link(link: &list::SingleListLink<Self>) -> &Self
+}
+
+#[repr(C)]
+pub struct BitTrieChain<'s, T: 's> {
+    list_link: list::SingleListLink<'s, T>,
+}
+
+#[repr(C)]
+pub struct ListLink<'s, T: 's> {
+    list_link: list::ListLink<'s, T>,
+}
+
+pub trait BitTrieLinkAdapter<'s, const NCPL: usize>: list::SingleLinkAdapter<'s, ChainTag> {
+    fn link(&self) -> &list::SingleListLink<'s, Self>
     where
         Self: Sized
     {
         unsafe {
-            Self::from_bit_trie_link(mem::transmute::<&list::SingleListLink<Self>, &BitTrieLink<BPL, Self>>(link))
+            &mem::transmute::<&BitTrieLink<'s, NCPL, Self>, &BitTrieChain<'s, Self>>(self.bit_trie_link()).list_link
+        }
+    }
+    fn from_link<'a>(link: &'a list::SingleListLink<'s, Self>) -> &'a Self
+    where
+        Self: Sized
+    {
+        unsafe {
+            Self::from_bit_trie_link(mem::transmute::<&list::SingleListLink<'s, Self>, &BitTrieLink<'s, NCPL, Self>>(link))
         }
     }
 
     fn data(&self) -> usize;
-    fn bit_trie_link(&self) -> &BitTrieLink<BPL, Self>
+    fn bit_trie_link(&self) -> &BitTrieLink<'s, NCPL, Self>
     where
         Self: Sized;
-    fn from_bit_trie_link(link: &BitTrieLink<BPL, Self>) -> &Self
+    fn from_bit_trie_link<'a>(link: &'a BitTrieLink<'s, NCPL, Self>) -> &'a Self
     where
         Self: Sized;
 }
 
 const BIT_TRIE_LINK_OFFSET: usize = 4; /*mem::offset_of!(T, list_link)*/
 
-impl<const BPL: usize, T: 'static> BitTrieRoot<BPL, T>
-where T: BitTrieLinkAdapter<BPL> {
-    pub fn unlink_lowest(&self) -> Option<&'static T> {
+impl<'s, const NCPL: usize, T: 's> BitTrieRoot<'s, NCPL, T>
+where T: BitTrieLinkAdapter<'s, NCPL> {
+    pub fn unlink_lowest(&self) -> Option<&'s T> {
         self.unlink_lowest_in_subtree(self.root.get(), 0, usize::MAX, None, 0)
     }
 
-    pub fn unlink_eq_or_above(&self, data: usize) -> Option<&'static T> {
+    pub fn unlink_eq_or_above(&self, data: usize) -> Option<&'s T> {
         let mut shift = self.shift;
         let mut ptr = self.root.get();
         let mut nearest_above_data = usize::MAX;
@@ -100,9 +111,9 @@ where T: BitTrieLinkAdapter<BPL> {
                 nearest_above = Some(cur);
                 nearest_above_parents_index = parents_index;
             }
-            let index = (data >> shift) & ((1 << BPL) - 1);
+            let index = (data >> shift) & (NCPL - 1);
             ptr = unsafe { cur.children.get_unchecked(index).get() };
-            for i in index + 1..(1 << BPL) {
+            for i in index + 1..NCPL {
                 if let Some(link) = unsafe { cur.children.get_unchecked(i).get() } {
                     next_above_link = Some(link);
                     next_above_parents_index = i;
@@ -115,7 +126,7 @@ where T: BitTrieLinkAdapter<BPL> {
         self.unlink_lowest_in_subtree(next_above_link, next_above_parents_index, nearest_above_data, nearest_above, nearest_above_parents_index)
     }
 
-    fn unlink_lowest_in_subtree(&self, ptr: Option<&'static BitTrieLink<BPL, T>>, parents_index: usize, nearest_above_data: usize, nearest_above: Option<&'static BitTrieLink<BPL, T>>, nearest_above_parents_index: usize) -> Option<&'static T> {
+    fn unlink_lowest_in_subtree(&self, ptr: Option<&'s BitTrieLink<'s, NCPL, T>>, parents_index: usize, nearest_above_data: usize, nearest_above: Option<&'s BitTrieLink<'s, NCPL, T>>, nearest_above_parents_index: usize) -> Option<&'s T> {
         let mut ptr_index = ptr.map(|p| (p, parents_index));
         let mut nearest_above_data = nearest_above_data;
         let mut nearest_above = nearest_above;
@@ -127,7 +138,7 @@ where T: BitTrieLinkAdapter<BPL> {
                 nearest_above = Some(cur);
                 nearest_above_parents_index = index;
             }
-            ptr_index = (0..(1 << BPL))
+            ptr_index = (0..NCPL)
                 .find_map(|i| unsafe { cur.children.get_unchecked(i).get() }.map(|link| (link, i)) );
         }
         nearest_above.map(|link| {
@@ -136,44 +147,54 @@ where T: BitTrieLinkAdapter<BPL> {
         })
     }
 
-    fn unlink_chunk(&self, link: &'static BitTrieLink<BPL, T>, parents_index: usize) {
+    fn unlink_chunk(&self, link: &'s BitTrieLink<'s, NCPL, T>, parents_index: usize) {
         if let Some(next) = self.list_for_data(link).pop_front() {
             self.replace_chunk(link, next.bit_trie_link(), parents_index);
         } else {
-            let mut ptr_index = Some((link, parents_index));
-            let mut last_link = link;
-            let mut last_index = parents_index;
+            let mut ptr_index = (0..NCPL)
+                .rev()
+                .find_map(|i| unsafe { link.children.get_unchecked(i).get() }.map(|link| (link, i)));
+            let mut last_ptr_index = ptr_index;
             while let Some((cur, index)) = ptr_index {
-                last_link = cur;
-                last_index = index;
-                ptr_index = (0..(1 << BPL))
+                last_ptr_index = ptr_index;
+                ptr_index = (0..NCPL)
                     .rev()
                     .find_map(|i| unsafe { cur.children.get_unchecked(i).get() }.map(|link| (link, i)));
             }
-            self.replace_chunk(link, last_link, last_index);
+            if let Some((last_link, last_parents_index)) = last_ptr_index {
+                self.replace_chunk(link, last_link, last_parents_index);
+            } else {
+                if let Some(parent) = link.parent.get() {
+                    unsafe { parent.children.get_unchecked(parents_index) }.set(None);
+                } else {
+                    self.root.set(None);
+                }
+                link.clear_trie_link();
+            }
         }
     }
 
-    fn replace_chunk(&self, cur: &'static BitTrieLink<BPL, T>, replaced: &'static BitTrieLink<BPL, T>, parents_index: usize) {
+    fn replace_chunk(&self, cur: &'s BitTrieLink<'s, NCPL, T>, replaced: &'s BitTrieLink<'s, NCPL, T>, parents_index: usize) {
         replaced.parent.set(cur.parent.get());
         if let Some(parent) = cur.parent.get() {
             unsafe { parent.children.get_unchecked(parents_index) }.set(Some(replaced));
         } else {
             self.root.set(Some(replaced));
         }
-        for i in 0..(1 << BPL) {
+        for i in 0..NCPL {
             unsafe {
                 replaced.children.get_unchecked(i).set(cur.children.get_unchecked(i).get());
                 cur.children.get_unchecked(i).get().map(|child| child.parent.set(Some(replaced)));
             }
         }
+        cur.clear_trie_link();
     }
 
-    fn list_for_data(&self, link: &'static BitTrieLink<BPL, T>) -> list::LinkedStack<'_, T, ChainTag> {
+    fn list_for_data(&self, link: &'s BitTrieLink<'s, NCPL, T>) -> list::LinkedStack<'_, 's, T, ChainTag> {
         list::LinkedStack::new(&link.chain)
     }
 
-    pub fn insert(&self, chunk: &'static T) {
+    pub fn insert(&self, chunk: &'s T) {
         let mut shift = self.shift;
         let mut ptr = &self.root;
         let mut parent = None;
@@ -183,7 +204,7 @@ where T: BitTrieLinkAdapter<BPL> {
                 self.list_for_data(cur).push_front(chunk);
                 return;
             }
-            let index = (chunk.data() >> shift) & ((1 << BPL) - 1);
+            let index = (chunk.data() >> shift) & (NCPL - 1);
             ptr = unsafe { &cur.children.get_unchecked(index) };
             parent = Some(cur);
             shift -= 2;

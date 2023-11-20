@@ -2,10 +2,10 @@
 #![feature(concat_bytes)]
 #![feature(maybe_uninit_slice)]
 #![feature(asm_const)]
-#![feature(generators, generator_trait)]
 #![feature(core_intrinsics)]
 #![feature(cell_update)]
-#![feature(offset_of)]
+#![feature(generators, generator_trait)]
+// #![feature(coroutines)]
 // #![feature(offset_of)]
 
 #[macro_use]

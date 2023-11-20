@@ -4,6 +4,7 @@ use ::klib::ipc::Message;
 use ::klib::result::KResult;
 use ::klib::syscall::Syscall;
 
+#[allow(dead_code)]
 fn to_u32_result(a0: u32, a1: u32) -> KResult<u32> {
     if a0 == 0 {
         KResult::Ok(a1.into())
@@ -12,6 +13,7 @@ fn to_u32_result(a0: u32, a1: u32) -> KResult<u32> {
     }
 }
 
+#[allow(dead_code)]
 fn to_unit_result(a0: u32) -> KResult<()> {
     if a0 == 0 {
         KResult::Ok(Default::default())
@@ -20,6 +22,7 @@ fn to_unit_result(a0: u32) -> KResult<()> {
     }
 }
 
+#[allow(dead_code)]
 pub fn syscall0r(syscall_id: Syscall) -> KResult<u32> {
     unsafe {
         let mut a0: u32;
@@ -29,6 +32,7 @@ pub fn syscall0r(syscall_id: Syscall) -> KResult<u32> {
     }
 }
 
+#[allow(dead_code)]
 pub fn syscall0(syscall_id: Syscall) -> KResult<()> {
     unsafe {
         let mut a0: u32;
@@ -37,6 +41,7 @@ pub fn syscall0(syscall_id: Syscall) -> KResult<()> {
     }
 }
 
+#[allow(dead_code)]
 pub fn syscall1(syscall_id: Syscall, mut a0: u32) -> KResult<()> {
     unsafe {
         asm!("ecall", inout("a0") a0, in("a7") syscall_id as u32);
@@ -44,6 +49,7 @@ pub fn syscall1(syscall_id: Syscall, mut a0: u32) -> KResult<()> {
     }
 }
 
+#[allow(dead_code)]
 pub fn syscall2r(syscall_id: Syscall, mut a0: u32, mut a1: u32) -> KResult<u32> {
     unsafe {
         asm!("ecall", inout("a0") a0, inout("a1") a1, in("a7") syscall_id as u32);
@@ -51,6 +57,7 @@ pub fn syscall2r(syscall_id: Syscall, mut a0: u32, mut a1: u32) -> KResult<u32> 
     }
 }
 
+#[allow(dead_code)]
 pub fn syscall2(syscall_id: Syscall, mut a0: u32, a1: u32) -> KResult<()> {
     unsafe {
         asm!("ecall", inout("a0") a0, in("a1") a1, in("a7") syscall_id as u32);
@@ -58,6 +65,7 @@ pub fn syscall2(syscall_id: Syscall, mut a0: u32, a1: u32) -> KResult<()> {
     }
 }
 
+#[allow(dead_code)]
 pub fn syscall4(syscall_id: Syscall, mut a0: u32, a1: u32, a2: u32, a3: u32) -> KResult<()> {
     unsafe {
         asm!("ecall", inout("a0") a0, in("a1") a1, in("a2") a2, in("a3") a3, in("a7") syscall_id as u32);

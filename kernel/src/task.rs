@@ -15,7 +15,7 @@ pub const INIT_TID: u32 = 1;
 
 pub type TaskRef = &'static Task;
 type TaskList = [Task; config::NUM_TASKS as usize];
-type RunQueue = list::ListLink<Task>;
+type RunQueue = list::ListLink<'static, Task>;
 
 #[repr(align(16))]
 pub struct TaskPool {
@@ -25,7 +25,7 @@ pub struct TaskPool {
 
 static mut TASK_POOL: TaskPool = TaskPool {
     tasks: zeroed_array!(Task, config::NUM_TASKS as usize),
-    runqueues: zeroed_array!(list::ListLink<Task>, TASK_PRIORITY_MAX as usize),
+    runqueues: zeroed_array!(list::ListLink<'static, Task>, TASK_PRIORITY_MAX as usize),
 };
 
 trait TaskListOps {
@@ -40,11 +40,11 @@ impl TaskListOps for TaskList {
 
 struct RunQueueTag;
 
-impl list::LinkAdapter<RunQueueTag> for Task {
-    fn link(&self) -> &list::ListLink<Task> {
+impl list::LinkAdapter<'static, RunQueueTag> for Task {
+    fn link(&self) -> &list::ListLink<'static, Task> {
         &self.noarch().runqueue_link
     }
-    fn from_link(link: &list::ListLink<Task>) -> &Task {
+    fn from_link<'a>(link: &'a list::ListLink<'static, Task>) -> &'a Task {
         unsafe {
             mem::transmute::<usize, &Task>(
                 mem::transmute::<&list::ListLink<Task>, usize>(link)
@@ -56,11 +56,11 @@ impl list::LinkAdapter<RunQueueTag> for Task {
 
 pub struct SendersTag;
 
-impl list::LinkAdapter<SendersTag> for Task {
-    fn link(&self) -> &list::ListLink<Task> {
+impl list::LinkAdapter<'static, SendersTag> for Task {
+    fn link(&self) -> &list::ListLink<'static, Task> {
         &self.noarch().sender_link
     }
-    fn from_link(link: &list::ListLink<Task>) -> &Task {
+    fn from_link<'a>(link: &'a list::ListLink<'static, Task>) -> &'a Task {
         unsafe {
             mem::transmute::<usize, &Task>(
                 mem::transmute::<&list::ListLink<Task>, usize>(link)
@@ -82,7 +82,7 @@ impl TaskPool {
         Task::current()
     }
 
-    fn list_for_runqueue(&self, priority: u32) -> list::LinkedList<'_, Task, RunQueueTag> {
+    fn list_for_runqueue(&self, priority: u32) -> list::LinkedList<'_, 'static, Task, RunQueueTag> {
         list::LinkedList::new(unsafe { self.runqueues.get_unchecked(priority as usize) })
     }
 
@@ -166,7 +166,7 @@ impl TaskPool {
         task.noarch().src_tid.set(src_tid);
     }
 
-    pub fn list_for_senders(&self, task: TaskRef) -> list::LinkedList<'_, Task, SendersTag> {
+    pub fn list_for_senders(&self, task: TaskRef) -> list::LinkedList<'_, 'static, Task, SendersTag> {
         list::LinkedList::new(&task.noarch().senders)
     }
 
@@ -235,9 +235,9 @@ pub struct NoarchTask {
     message: Cell<Message>,
     src_tid: Cell<u32>,
     timeout: Cell<u32>,
-    senders: list::ListLink<Task>,
-    runqueue_link: list::ListLink<Task>,
-    sender_link: list::ListLink<Task>,
+    senders: list::ListLink<'static, Task>,
+    runqueue_link: list::ListLink<'static, Task>,
+    sender_link: list::ListLink<'static, Task>,
 }
 
 #[derive(PartialEq, Clone, Copy)]

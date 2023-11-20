@@ -3,55 +3,57 @@ use core::mem;
 use core::cell::Cell;
 use klib::list;
 
-struct Chunk {
+#[derive(Debug, Eq, PartialEq)]
+struct Chunk<'s> {
     value: usize,
-    link: BitTrieLink<2, Chunk>,
+    link: BitTrieLink<'s, 4, Chunk<'s>>,
 }
 
-impl Chunk {
+impl<'s> Chunk<'s> {
     const fn zeroed() -> Self {
         Self {
             value: 3,
-            link: BitTrieLink::init([Cell::new(Option::None), Cell::new(Option::None)]),
+            link: BitTrieLink::init([Cell::new(Option::None), Cell::new(Option::None), Cell::new(Option::None), Cell::new(Option::None)]),
         }
     }
 }
 
-impl BitTrieLinkAdapter<2> for Chunk {
+impl<'s> BitTrieLinkAdapter<'s, 4> for Chunk<'s> {
     fn data(&self) -> usize {
         self.value
     }
 
-    fn from_bit_trie_link(link: &BitTrieLink<2, Self>) -> &Self {
+    fn from_bit_trie_link<'a>(link: &'a BitTrieLink<'s, 4, Self>) -> &'a Self {
         unsafe {
             mem::transmute::<usize, &Self>(
-                mem::transmute::<&BitTrieLink<2, Self>, usize>(link) - mem::offset_of!(Chunk, link),
+                mem::transmute::<&BitTrieLink<'s, 4, Self>, usize>(link) - mem::offset_of!(Chunk, link),
             )
         }
     }
 
-    fn bit_trie_link(&self) -> &BitTrieLink<2, Self> {
+    fn bit_trie_link(&self) -> &BitTrieLink<'s, 4, Self> {
         &self.link
     }
 }
 
-impl list::SingleLinkAdapter<ChainTag> for Chunk {
-    fn link(&self) -> &list::SingleListLink<Self> {
+impl<'s> list::SingleLinkAdapter<'s, ChainTag> for Chunk<'s> {
+    fn link(&self) -> &list::SingleListLink<'s, Self> {
         BitTrieLinkAdapter::link(self)
     }
 
-    fn from_link(link: &list::SingleListLink<Self>) -> &Self {
+    fn from_link<'a>(link: &'a list::SingleListLink<'s, Self>) -> &'a Self {
         BitTrieLinkAdapter::from_link(link)
     }
 }
 
-static mut CHUNK: Chunk = Chunk::zeroed();
+// static mut CHUNK: Chunk = Chunk::zeroed();
 
 #[test]
 fn bit_trie_insert() {
-    let trie = BitTrieRoot::<2, Chunk>::new(8);
-    // let chunk = Chunk { value: 3, link: unsafe { mem::zeroed() } };
+    let trie = BitTrieRoot::<4, Chunk>::new(8);
+    let chunk = Chunk::zeroed();
 
-    trie.insert(unsafe { &CHUNK });
-    assert_eq!(2, 3);
+    trie.insert(&chunk);
+    assert_eq!(trie.unlink_lowest(), Option::Some(&chunk));
+    assert_eq!(trie.unlink_lowest(), Option::None);
 }
