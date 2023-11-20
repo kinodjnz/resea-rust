@@ -1,5 +1,5 @@
-use ::klib::result::KResult;
 use ::klib::ipc::Message;
+use ::klib::result::KResult;
 
 pub fn nop() -> KResult<()> {
     unimplemented!();

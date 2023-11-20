@@ -1,6 +1,6 @@
-use klib::list;
 use core::cell::Cell;
 use core::mem;
+use klib::list;
 
 #[repr(C)]
 pub struct BitTrieRoot<'s, const NCPL: usize, T: 's> {
@@ -60,18 +60,24 @@ pub struct ListLink<'s, T: 's> {
 pub trait BitTrieLinkAdapter<'s, const NCPL: usize>: list::SingleLinkAdapter<'s, ChainTag> {
     fn link(&self) -> &list::SingleListLink<'s, Self>
     where
-        Self: Sized
+        Self: Sized,
     {
         unsafe {
-            &mem::transmute::<&BitTrieLink<'s, NCPL, Self>, &BitTrieChain<'s, Self>>(self.bit_trie_link()).list_link
+            &mem::transmute::<&BitTrieLink<'s, NCPL, Self>, &BitTrieChain<'s, Self>>(
+                self.bit_trie_link(),
+            )
+            .list_link
         }
     }
     fn from_link<'a>(link: &'a list::SingleListLink<'s, Self>) -> &'a Self
     where
-        Self: Sized
+        Self: Sized,
     {
         unsafe {
-            Self::from_bit_trie_link(mem::transmute::<&list::SingleListLink<'s, Self>, &BitTrieLink<'s, NCPL, Self>>(link))
+            Self::from_bit_trie_link(mem::transmute::<
+                &list::SingleListLink<'s, Self>,
+                &BitTrieLink<'s, NCPL, Self>,
+            >(link))
         }
     }
 
@@ -87,7 +93,9 @@ pub trait BitTrieLinkAdapter<'s, const NCPL: usize>: list::SingleLinkAdapter<'s,
 const BIT_TRIE_LINK_OFFSET: usize = 4; /*mem::offset_of!(T, list_link)*/
 
 impl<'s, const NCPL: usize, T: 's> BitTrieRoot<'s, NCPL, T>
-where T: BitTrieLinkAdapter<'s, NCPL> {
+where
+    T: BitTrieLinkAdapter<'s, NCPL>,
+{
     pub fn unlink_lowest(&self) -> Option<&'s T> {
         self.unlink_lowest_in_subtree(self.root.get(), 0, usize::MAX, None, 0)
     }
@@ -123,10 +131,23 @@ where T: BitTrieLinkAdapter<'s, NCPL> {
             parents_index = index;
             shift -= 2;
         }
-        self.unlink_lowest_in_subtree(next_above_link, next_above_parents_index, nearest_above_data, nearest_above, nearest_above_parents_index)
+        self.unlink_lowest_in_subtree(
+            next_above_link,
+            next_above_parents_index,
+            nearest_above_data,
+            nearest_above,
+            nearest_above_parents_index,
+        )
     }
 
-    fn unlink_lowest_in_subtree(&self, ptr: Option<&'s BitTrieLink<'s, NCPL, T>>, parents_index: usize, nearest_above_data: usize, nearest_above: Option<&'s BitTrieLink<'s, NCPL, T>>, nearest_above_parents_index: usize) -> Option<&'s T> {
+    fn unlink_lowest_in_subtree(
+        &self,
+        ptr: Option<&'s BitTrieLink<'s, NCPL, T>>,
+        parents_index: usize,
+        nearest_above_data: usize,
+        nearest_above: Option<&'s BitTrieLink<'s, NCPL, T>>,
+        nearest_above_parents_index: usize,
+    ) -> Option<&'s T> {
         let mut ptr_index = ptr.map(|p| (p, parents_index));
         let mut nearest_above_data = nearest_above_data;
         let mut nearest_above = nearest_above;
@@ -139,7 +160,7 @@ where T: BitTrieLinkAdapter<'s, NCPL> {
                 nearest_above_parents_index = index;
             }
             ptr_index = (0..NCPL)
-                .find_map(|i| unsafe { cur.children.get_unchecked(i).get() }.map(|link| (link, i)) );
+                .find_map(|i| unsafe { cur.children.get_unchecked(i).get() }.map(|link| (link, i)));
         }
         nearest_above.map(|link| {
             self.unlink_chunk(link, nearest_above_parents_index);
@@ -151,15 +172,15 @@ where T: BitTrieLinkAdapter<'s, NCPL> {
         if let Some(next) = self.list_for_data(link).pop_front() {
             self.replace_chunk(link, next.bit_trie_link(), parents_index);
         } else {
-            let mut ptr_index = (0..NCPL)
-                .rev()
-                .find_map(|i| unsafe { link.children.get_unchecked(i).get() }.map(|link| (link, i)));
+            let mut ptr_index = (0..NCPL).rev().find_map(|i| {
+                unsafe { link.children.get_unchecked(i).get() }.map(|link| (link, i))
+            });
             let mut last_ptr_index = ptr_index;
             while let Some((cur, index)) = ptr_index {
                 last_ptr_index = ptr_index;
-                ptr_index = (0..NCPL)
-                    .rev()
-                    .find_map(|i| unsafe { cur.children.get_unchecked(i).get() }.map(|link| (link, i)));
+                ptr_index = (0..NCPL).rev().find_map(|i| {
+                    unsafe { cur.children.get_unchecked(i).get() }.map(|link| (link, i))
+                });
             }
             if let Some((last_link, last_parents_index)) = last_ptr_index {
                 self.replace_chunk(link, last_link, last_parents_index);
@@ -174,7 +195,12 @@ where T: BitTrieLinkAdapter<'s, NCPL> {
         }
     }
 
-    fn replace_chunk(&self, cur: &'s BitTrieLink<'s, NCPL, T>, replaced: &'s BitTrieLink<'s, NCPL, T>, parents_index: usize) {
+    fn replace_chunk(
+        &self,
+        cur: &'s BitTrieLink<'s, NCPL, T>,
+        replaced: &'s BitTrieLink<'s, NCPL, T>,
+        parents_index: usize,
+    ) {
         replaced.parent.set(cur.parent.get());
         if let Some(parent) = cur.parent.get() {
             unsafe { parent.children.get_unchecked(parents_index) }.set(Some(replaced));
@@ -183,14 +209,23 @@ where T: BitTrieLinkAdapter<'s, NCPL> {
         }
         for i in 0..NCPL {
             unsafe {
-                replaced.children.get_unchecked(i).set(cur.children.get_unchecked(i).get());
-                cur.children.get_unchecked(i).get().map(|child| child.parent.set(Some(replaced)));
+                replaced
+                    .children
+                    .get_unchecked(i)
+                    .set(cur.children.get_unchecked(i).get());
+                cur.children
+                    .get_unchecked(i)
+                    .get()
+                    .map(|child| child.parent.set(Some(replaced)));
             }
         }
         cur.clear_trie_link();
     }
 
-    fn list_for_data(&self, link: &'s BitTrieLink<'s, NCPL, T>) -> list::LinkedStack<'_, 's, T, ChainTag> {
+    fn list_for_data(
+        &self,
+        link: &'s BitTrieLink<'s, NCPL, T>,
+    ) -> list::LinkedStack<'_, 's, T, ChainTag> {
         list::LinkedStack::new(&link.chain)
     }
 

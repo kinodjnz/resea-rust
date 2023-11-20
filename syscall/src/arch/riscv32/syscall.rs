@@ -1,8 +1,8 @@
-use core::arch::asm;
-use core::mem;
 use ::klib::ipc::Message;
 use ::klib::result::KResult;
 use ::klib::syscall::Syscall;
+use core::arch::asm;
+use core::mem;
 
 #[allow(dead_code)]
 fn to_u32_result(a0: u32, a1: u32) -> KResult<u32> {

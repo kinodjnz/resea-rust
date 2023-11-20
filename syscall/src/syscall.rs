@@ -1,6 +1,6 @@
+use crate::arch;
 use klib::ipc::Message;
 use klib::result::KResult;
-use crate::arch;
 
 pub fn nop() -> KResult<()> {
     arch::syscall::nop()

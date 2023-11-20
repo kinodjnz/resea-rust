@@ -155,7 +155,10 @@ impl HeapAllocator {
         Self {
             brk: Cell::new(ptr::null_mut()),
             small_used: Cell::new(0),
-            small_free_chunks: zeroed_array!(list::RemovableStartLink<Chunk>, Self::NUM_SMALL_CHUNKS),
+            small_free_chunks: zeroed_array!(
+                list::RemovableStartLink<Chunk>,
+                Self::NUM_SMALL_CHUNKS
+            ),
             alloc_chunks: zeroed_array!(list::RemovableStartLink<Chunk>, Self::NUM_TASKS),
         }
     }
@@ -228,11 +231,17 @@ impl HeapAllocator {
         }
     }
 
-    fn list_for_small_free_chunks(&self, index: usize) -> list::RemovableLinkedStack<'_, 'static, Chunk, ChunkTag> {
+    fn list_for_small_free_chunks(
+        &self,
+        index: usize,
+    ) -> list::RemovableLinkedStack<'_, 'static, Chunk, ChunkTag> {
         list::RemovableLinkedStack::new(unsafe { &self.small_free_chunks.get_unchecked(index) })
     }
 
-    fn list_for_alloc_chunks(&self, tid: u32) -> list::RemovableLinkedStack<'_, 'static, Chunk, ChunkTag> {
+    fn list_for_alloc_chunks(
+        &self,
+        tid: u32,
+    ) -> list::RemovableLinkedStack<'_, 'static, Chunk, ChunkTag> {
         list::RemovableLinkedStack::new(unsafe { &self.alloc_chunks.get_unchecked(tid as usize) })
     }
 

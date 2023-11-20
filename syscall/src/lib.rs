@@ -11,7 +11,7 @@ extern crate klib;
 #[macro_use]
 pub mod macros;
 
+mod arch;
 pub mod error;
 pub mod payload;
 pub mod syscall;
-mod arch;

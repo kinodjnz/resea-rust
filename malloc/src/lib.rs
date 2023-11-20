@@ -14,8 +14,8 @@ extern crate klib;
 #[macro_use]
 extern crate syscall;
 
-pub mod malloc;
 mod bit_trie;
+pub mod malloc;
 
 #[cfg(test)]
 mod bit_trie_test;

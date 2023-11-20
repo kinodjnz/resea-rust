@@ -166,7 +166,10 @@ impl TaskPool {
         task.noarch().src_tid.set(src_tid);
     }
 
-    pub fn list_for_senders(&self, task: TaskRef) -> list::LinkedList<'_, 'static, Task, SendersTag> {
+    pub fn list_for_senders(
+        &self,
+        task: TaskRef,
+    ) -> list::LinkedList<'_, 'static, Task, SendersTag> {
         list::LinkedList::new(&task.noarch().senders)
     }
 

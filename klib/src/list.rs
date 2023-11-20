@@ -40,7 +40,9 @@ impl<'s, T: 's> ListLink<'s, T> {
 
 impl<'s, T: 's> SingleListLink<'s, T> {
     pub const fn zeroed() -> Self {
-        SingleListLink { next: Cell::new(None) }
+        SingleListLink {
+            next: Cell::new(None),
+        }
     }
 }
 
@@ -96,8 +98,7 @@ impl<'a, 's, T: 's> StartLink<'s, T, ListLink<'s, T>> for RemovableStartLink<'s,
         self.next.set(link);
     }
 
-    fn set_prev(&self, _link: Option<&'s ListLink<'s, T>>) {
-    }
+    fn set_prev(&self, _link: Option<&'s ListLink<'s, T>>) {}
 
     fn next(&self) -> Option<&'s ListLink<'s, T>> {
         self.next.get()
@@ -165,9 +166,8 @@ where
     }
 }
 
-impl<'a, 's, T: 's, LinkTag: 'a>
-    RemovableLinkedStackOps<'a, 's, T, LinkTag, ListLink<'s, T>>
-for LinkedList<'a, 's, T, LinkTag>
+impl<'a, 's, T: 's, LinkTag: 'a> RemovableLinkedStackOps<'a, 's, T, LinkTag, ListLink<'s, T>>
+    for LinkedList<'a, 's, T, LinkTag>
 where
     T: LinkAdapter<'s, LinkTag>,
 {
@@ -178,7 +178,7 @@ where
 
 impl<'a, 's, T: 's, LinkTag: 'a>
     RemovableLinkedStackOps<'a, 's, T, LinkTag, RemovableStartLink<'s, T>>
-for RemovableLinkedStack<'a, 's, T, LinkTag>
+    for RemovableLinkedStack<'a, 's, T, LinkTag>
 where
     T: LinkAdapter<'s, LinkTag>,
 {
@@ -200,7 +200,7 @@ where
 }
 
 impl<'a, 's, T: 's, LinkTag> LinkedList<'a, 's, T, LinkTag>
-  where
+where
     T: LinkAdapter<'s, LinkTag>,
 {
     pub fn new(link_start: &'a ListLink<'s, T>) -> Self {
@@ -241,7 +241,9 @@ pub struct ListIterator<'a, 's, T: LinkAdapter<'s, LinkTag> + 's, LinkTag> {
     phantom_tag: PhantomData<LinkTag>,
 }
 
-impl<'a, 's, T: LinkAdapter<'s, LinkTag> + 's, LinkTag> Iterator for ListIterator<'a, 's, T, LinkTag> {
+impl<'a, 's, T: LinkAdapter<'s, LinkTag> + 's, LinkTag> Iterator
+    for ListIterator<'a, 's, T, LinkTag>
+{
     type Item = &'s T;
 
     fn next(&mut self) -> Option<Self::Item> {
@@ -256,7 +258,7 @@ impl<'a, 's, T: LinkAdapter<'s, LinkTag> + 's, LinkTag> Iterator for ListIterato
 }
 
 impl<'a, 's, T: 's, LinkTag> LinkedStack<'a, 's, T, LinkTag>
-  where
+where
     T: SingleLinkAdapter<'s, LinkTag>,
 {
     pub fn new(link_start: &'a SingleListLink<'s, T>) -> Self {

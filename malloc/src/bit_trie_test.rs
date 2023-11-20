@@ -1,6 +1,6 @@
 use crate::bit_trie::*;
-use core::mem;
 use core::cell::Cell;
+use core::mem;
 use klib::list;
 
 #[derive(Debug, Eq, PartialEq)]
@@ -13,7 +13,12 @@ impl<'s> Chunk<'s> {
     const fn zeroed() -> Self {
         Self {
             value: 3,
-            link: BitTrieLink::init([Cell::new(Option::None), Cell::new(Option::None), Cell::new(Option::None), Cell::new(Option::None)]),
+            link: BitTrieLink::init([
+                Cell::new(Option::None),
+                Cell::new(Option::None),
+                Cell::new(Option::None),
+                Cell::new(Option::None),
+            ]),
         }
     }
 }
@@ -26,7 +31,8 @@ impl<'s> BitTrieLinkAdapter<'s, 4> for Chunk<'s> {
     fn from_bit_trie_link<'a>(link: &'a BitTrieLink<'s, 4, Self>) -> &'a Self {
         unsafe {
             mem::transmute::<usize, &Self>(
-                mem::transmute::<&BitTrieLink<'s, 4, Self>, usize>(link) - mem::offset_of!(Chunk, link),
+                mem::transmute::<&BitTrieLink<'s, 4, Self>, usize>(link)
+                    - mem::offset_of!(Chunk, link),
             )
         }
     }
