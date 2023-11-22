@@ -2,7 +2,7 @@ use crate::init::ConsoleMessage;
 use ::syscall::error::print_error;
 use alloc::vec::Vec;
 use core::mem;
-use core::ops::{Generator, GeneratorState};
+use core::ops::{Coroutine, CoroutineState};
 use core::pin::Pin;
 use klib::ipc::{self, MessageType, Notifications};
 use klib::result::KResult;
@@ -21,7 +21,7 @@ enum GeneratorResponse {
     Message(ipc::Message),
 }
 
-fn delayed_writer() -> impl Generator<GeneratorResponse, Yield = GeneratorCommand> {
+fn delayed_writer() -> impl Coroutine<GeneratorResponse, Yield = GeneratorCommand> {
     |response: GeneratorResponse| {
         let message = if let GeneratorResponse::Message(message) = response {
             message
@@ -45,7 +45,7 @@ fn delayed_writer() -> impl Generator<GeneratorResponse, Yield = GeneratorComman
 
 fn run_generator<G>(generator: &mut Option<G>, mut response: GeneratorResponse)
 where
-    G: Generator<GeneratorResponse, Yield = GeneratorCommand> + core::marker::Unpin,
+    G: Coroutine<GeneratorResponse, Yield = GeneratorCommand> + core::marker::Unpin,
 {
     let mut command = GeneratorCommand::Continue;
     loop {
@@ -56,10 +56,10 @@ where
                     .unwrap()
                     .resume(response)
                 {
-                    GeneratorState::Yielded(next_command) => {
+                    CoroutineState::Yielded(next_command) => {
                         (next_command, GeneratorResponse::None)
                     }
-                    GeneratorState::Complete(_) => {
+                    CoroutineState::Complete(_) => {
                         (GeneratorCommand::Complete, GeneratorResponse::None)
                     }
                 }

@@ -4,9 +4,8 @@
 #![feature(asm_const)]
 #![feature(core_intrinsics)]
 #![feature(cell_update)]
-#![feature(generators, generator_trait)]
-// #![feature(coroutines)]
-// #![feature(offset_of)]
+#![feature(coroutines, coroutine_trait)]
+#![feature(offset_of)]
 
 #[macro_use]
 extern crate klib;

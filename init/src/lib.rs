@@ -2,7 +2,7 @@
 #![feature(concat_bytes)]
 #![feature(maybe_uninit_slice)]
 #![feature(asm_const)]
-#![feature(generators, generator_trait)]
+#![feature(coroutines, coroutine_trait)]
 #![feature(core_intrinsics)]
 #![feature(maybe_uninit_uninit_array)]
 #![feature(sync_unsafe_cell)]
