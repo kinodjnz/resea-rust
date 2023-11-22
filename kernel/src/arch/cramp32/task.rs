@@ -3,6 +3,7 @@ use crate::macros::*;
 use crate::task::{GetNoarchTask, KArchTask, NoarchTask};
 use core::cell::Cell;
 use core::slice;
+use core::arch::global_asm;
 use klib::result::KResult;
 
 const STACK_SIZE: usize = 512;
@@ -42,10 +43,21 @@ fn init_stack(tid: u32, pc: usize) -> usize {
     }
 }
 
+global_asm!(r#"
+    .section .text.init
+    .global idle_task
+idle_task:
+    jump  idle_task, t0
+"#);
+
 impl KArchTask for Cramp32Task {
     fn arch_task_init(tid: u32, task: &Cramp32Task, pc: usize) -> KResult<()> {
         task.stack.set(init_stack(tid, pc));
         KResult::Ok(())
+    }
+
+    fn arch_idle_task_entry_point() -> usize {
+        local_address_of!("idle_task")
     }
 
     fn arch_task_switch(prev: &Cramp32Task, next: &Cramp32Task) {
@@ -59,6 +71,21 @@ impl KArchTask for Cramp32Task {
         }
         unsafe {
             cramp32_task_switch(prev.stack.as_ptr(), next.stack.get(), next);
+        }
+    }
+
+    fn arch_switch_idle_task() {
+        extern "C" {
+            #[allow(improper_ctypes)]
+            fn cramp32_switch_idle_task(
+                dummy: usize,
+                next_sp: usize,
+                next_task: *const Cramp32Task,
+            );
+        }
+        let idle_task = Self::current();
+        unsafe {
+            cramp32_switch_idle_task(0, idle_task.stack.get(), idle_task);
         }
     }
 

@@ -11,7 +11,7 @@ fn init_bss() {
 }
 
 fn enable_interrupt() {
-    cramp32_csrsi!("mstatus", 8);
+    cramp32_csrsi!("mstatus", 0x80);
 }
 
 fn enable_machine_external_and_timer_interrupt() {

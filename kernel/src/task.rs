@@ -103,11 +103,16 @@ impl TaskPool {
     }
 
     pub fn create_idle_task(&self) -> KResult<()> {
-        Self::initiate_task(0, self.tasks.task(0), 0).map(|_| {
+        let idle_task_entry_point = Task::arch_idle_task_entry_point();
+        Self::initiate_task(0, self.tasks.task(0), idle_task_entry_point).map(|_| {
             let task = self.tasks.task(0);
             task.noarch().task_type.set(TaskType::Idle);
             Task::init_current(task);
         })
+    }
+
+    pub fn switch_idle_task() {
+        Task::arch_switch_idle_task();
     }
 
     fn enqueue_task(&self, task: TaskRef) {
@@ -271,7 +276,9 @@ impl NotificationMessage for Message {
 
 pub trait KArchTask {
     fn arch_task_init(tid: u32, task: TaskRef, pc: usize) -> KResult<()>;
+    fn arch_idle_task_entry_point() -> usize;
     fn arch_task_switch(prev: &Task, next: &Task);
+    fn arch_switch_idle_task();
     fn init_current(task: TaskRef);
     fn current() -> TaskRef;
 }

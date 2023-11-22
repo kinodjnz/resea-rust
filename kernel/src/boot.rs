@@ -1,5 +1,5 @@
 use crate::macros::*;
-use crate::task;
+use crate::task::{self, TaskPool};
 
 pub fn kmain() {
     printk!(b"\nBooting Resea/Rust v0.0.1\n");
@@ -13,5 +13,5 @@ pub fn kmain() {
     if task::get_task_pool().create_idle_task().is_err() {
         printk!(b"create idle task failed\n");
     }
-    loop {}
+    TaskPool::switch_idle_task();
 }

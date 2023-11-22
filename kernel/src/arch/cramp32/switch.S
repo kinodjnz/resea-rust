@@ -21,6 +21,9 @@ cramp32_task_switch:
         sw      a3, 0(sp)
 
         sw      sp, 0(a0)
+
+.global cramp32_switch_idle_task
+cramp32_switch_idle_task:
         mv      sp, a1
 
         csrw    mscratch, a2
@@ -50,8 +53,6 @@ cramp32_task_switch:
 cramp32_start_task:
         //call    stack_set_canary
 
-        li      a0, 0x80
-        csrs    mstatus, a0
         sw      sp, 0(tp)
 
         mret
