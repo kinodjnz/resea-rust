@@ -2,7 +2,7 @@
 #![feature(core_intrinsics)]
 #![no_builtins]
 
-mod arch;
+pub mod arch;
 
 #[cfg(not(test))]
 use core::panic::PanicInfo;

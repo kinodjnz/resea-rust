@@ -8,6 +8,7 @@ members = [
     "malloc",
     "memintrinsics",
 ]
+resolver = "2"
 
 [profile.release]
 opt-level = "s"

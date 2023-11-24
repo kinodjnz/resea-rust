@@ -1,8 +1,8 @@
 use super::irq;
-use super::macros::*;
 use super::timer;
 use crate::boot::kmain;
-use klib::mmio;
+use crate::{cramp32_csrsi, cramp32_csrw};
+use klib::{local_address_of, mmio};
 
 fn init_bss() {
     let bss_start = local_address_of!("__bss_start");

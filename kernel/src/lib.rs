@@ -4,10 +4,7 @@
 #![feature(try_trait_v2)]
 #![feature(cell_update)]
 
-#[macro_use]
 extern crate klib;
-
-#[macro_use]
 mod macros;
 
 //mod gpio;

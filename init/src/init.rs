@@ -1,7 +1,7 @@
-use ::syscall::error::print_error;
+use ::syscall::print_error;
 use alloc::alloc;
 use core::alloc::{GlobalAlloc, Layout};
-use core::arch::{asm, global_asm};
+use core::arch::global_asm;
 use core::cell::Cell;
 use core::ptr;
 use core::slice;
@@ -9,6 +9,7 @@ use ipc::malloc::{AllocMessage, DeallocMessage};
 use ipc::tid;
 use klib::cycle;
 use klib::ipc::{Message, MessageType};
+use klib::local_address_of;
 use klib::result::KResult;
 use syscall::syscall;
 

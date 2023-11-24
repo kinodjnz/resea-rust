@@ -1,9 +1,9 @@
 use crate::config;
-use crate::macros::*;
 use crate::task::{GetNoarchTask, KArchTask, NoarchTask};
+use core::arch::{asm, global_asm};
 use core::cell::Cell;
-use core::slice;
-use core::arch::global_asm;
+use core::{mem, slice};
+use klib::local_address_of;
 use klib::result::KResult;
 
 const STACK_SIZE: usize = 512;
@@ -43,12 +43,14 @@ fn init_stack(tid: u32, pc: usize) -> usize {
     }
 }
 
-global_asm!(r#"
+global_asm!(
+    r#"
     .section .text.init
     .global idle_task
 idle_task:
     jump  idle_task, t0
-"#);
+"#
+);
 
 impl KArchTask for Cramp32Task {
     fn arch_task_init(tid: u32, task: &Cramp32Task, pc: usize) -> KResult<()> {

@@ -3,7 +3,6 @@
 #![feature(maybe_uninit_slice)]
 #![feature(ptr_sub_ptr)]
 
-#[macro_use]
 pub mod macros;
 
 pub mod buf_writer;

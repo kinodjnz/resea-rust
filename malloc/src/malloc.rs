@@ -1,5 +1,5 @@
-use ::syscall::error::print_error;
-use ::syscall::syscall;
+use crate::syscall::print_error;
+use crate::syscall::syscall;
 #[cfg(not(test))]
 use core::arch::global_asm;
 use core::cell::Cell;
@@ -7,8 +7,8 @@ use core::mem;
 use core::ptr;
 use ipc::malloc;
 use klib::list::{self, RemovableLinkedStackOps};
-use klib::macros::*;
 use klib::result::KResult;
+use klib::{local_address_of, zeroed_array};
 
 #[cfg(not(test))]
 global_asm!(r#"

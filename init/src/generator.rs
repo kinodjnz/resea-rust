@@ -1,5 +1,5 @@
 use crate::init::ConsoleMessage;
-use ::syscall::error::print_error;
+use ::syscall::print_error;
 use alloc::vec::Vec;
 use core::mem;
 use core::ops::{Coroutine, CoroutineState};

@@ -1,5 +1,6 @@
-use crate::macros::*;
+use crate::printk;
 use crate::task::{self, TaskPool};
+use klib::local_address_of;
 
 pub fn kmain() {
     printk!(b"\nBooting Resea/Rust v0.0.1\n");

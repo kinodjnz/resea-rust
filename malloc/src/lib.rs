@@ -7,10 +7,7 @@
 #![feature(coroutines, coroutine_trait)]
 #![feature(offset_of)]
 
-#[macro_use]
 extern crate klib;
-
-#[macro_use]
 extern crate syscall;
 
 mod bit_trie;
