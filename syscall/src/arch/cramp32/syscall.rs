@@ -66,6 +66,14 @@ pub fn syscall2(syscall_id: Syscall, mut a0: u32, a1: u32) -> KResult<()> {
 }
 
 #[allow(dead_code)]
+pub fn syscall3(syscall_id: Syscall, mut a0: u32, a1: u32, a2: u32) -> KResult<()> {
+    unsafe {
+        asm!("ecall", inout("a0") a0, in("a1") a1, in("a2") a2, in("a7") syscall_id as u32);
+        to_unit_result(a0)
+    }
+}
+
+#[allow(dead_code)]
 pub fn syscall4(syscall_id: Syscall, mut a0: u32, a1: u32, a2: u32, a3: u32) -> KResult<()> {
     unsafe {
         asm!("ecall", inout("a0") a0, in("a1") a1, in("a2") a2, in("a3") a3, in("a7") syscall_id as u32);
@@ -113,6 +121,6 @@ pub fn ipc_send_noblock(dst_tid: u32, message: &Message) -> KResult<()> {
     })
 }
 
-pub fn create_task(tid: u32, pc: usize) -> KResult<()> {
-    syscall2(Syscall::CreateTask, tid, pc as u32)
+pub fn create_task(tid: u32, pc: u32, sp: u32) -> KResult<()> {
+    syscall3(Syscall::CreateTask, tid, pc, sp)
 }

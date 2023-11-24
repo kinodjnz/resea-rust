@@ -1,6 +1,6 @@
 use crate::config;
 use crate::task::{GetNoarchTask, KArchTask, NoarchTask};
-use core::arch::{asm, global_asm};
+use core::arch::asm;
 use core::cell::Cell;
 use core::{mem, slice};
 use klib::local_address_of;
@@ -20,13 +20,13 @@ static mut KERNEL_STACKS: KernelStack = KernelStack {
 
 #[repr(C, align(128))]
 pub struct Cramp32Task {
-    stack: Cell<usize>,
+    stack: Cell<u32>,
     user_sp: Cell<u32>,
     user_tp: Cell<u32>,
     noarch_task: NoarchTask,
 }
 
-fn init_stack(tid: u32, pc: usize) -> usize {
+fn init_stack(tid: u32, pc: u32) -> u32 {
     unsafe {
         let stack: *mut u32 = KERNEL_STACKS.stack.get_unchecked_mut(tid as usize) as *mut u32;
         let sp = stack.add(STACK_COUNT).sub(16);
@@ -37,39 +37,33 @@ fn init_stack(tid: u32, pc: usize) -> usize {
             // gp, tp, s0-s11
             prep[i] = 0;
         }
-        prep[15] = cramp32_start_task_ptr as u32; // ra
+        prep[15] = cramp32_start_task_ptr; // ra
 
-        sp as usize
+        sp as u32
     }
 }
 
-global_asm!(
-    r#"
-    .section .text.init
-    .global idle_task
-idle_task:
-    jump  idle_task, t0
-"#
-);
+#[no_mangle]
+pub extern "C" fn idle_task() {
+    loop {}
+}
 
 impl KArchTask for Cramp32Task {
-    fn arch_task_init(tid: u32, task: &Cramp32Task, pc: usize) -> KResult<()> {
+    fn arch_task_init(tid: u32, task: &Cramp32Task, pc: u32, sp: u32) -> KResult<()> {
         task.stack.set(init_stack(tid, pc));
+        task.user_sp.set(sp);
+        task.user_tp.set(0);
         KResult::Ok(())
     }
 
-    fn arch_idle_task_entry_point() -> usize {
+    fn arch_idle_task_entry_point() -> u32 {
         local_address_of!("idle_task")
     }
 
     fn arch_task_switch(prev: &Cramp32Task, next: &Cramp32Task) {
         extern "C" {
             #[allow(improper_ctypes)]
-            fn cramp32_task_switch(
-                prev_sp: *mut usize,
-                next_sp: usize,
-                next_task: *const Cramp32Task,
-            );
+            fn cramp32_task_switch(prev_sp: *mut u32, next_sp: u32, next_task: *const Cramp32Task);
         }
         unsafe {
             cramp32_task_switch(prev.stack.as_ptr(), next.stack.get(), next);
@@ -79,11 +73,7 @@ impl KArchTask for Cramp32Task {
     fn arch_switch_idle_task() {
         extern "C" {
             #[allow(improper_ctypes)]
-            fn cramp32_switch_idle_task(
-                dummy: usize,
-                next_sp: usize,
-                next_task: *const Cramp32Task,
-            );
+            fn cramp32_switch_idle_task(dummy: u32, next_sp: u32, next_task: *const Cramp32Task);
         }
         let idle_task = Self::current();
         unsafe {

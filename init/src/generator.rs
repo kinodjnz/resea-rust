@@ -73,7 +73,8 @@ where
     }
 }
 
-pub fn console_task() {
+#[no_mangle]
+pub extern "C" fn console_task() {
     syscall::console_write(b"generator console task started\n");
     let mut generator = None;
 

@@ -1,7 +1,5 @@
 use crate::syscall::print_error;
 use crate::syscall::syscall;
-#[cfg(not(test))]
-use core::arch::global_asm;
 use core::cell::Cell;
 use core::mem;
 use core::ptr;
@@ -10,17 +8,8 @@ use klib::list::{self, RemovableLinkedStackOps};
 use klib::result::KResult;
 use klib::{local_address_of, zeroed_array};
 
-#[cfg(not(test))]
-global_asm!(r#"
-    .section .text.init
-    .global malloc_task
-malloc_task:
-    auipc a0, %pcrel_hi(__malloc_task_stack_end)
-    addi  sp, a0, %pcrel_lo(malloc_task)
-    jump  {0}, t0
-"#, sym malloc_task_rust);
-
-fn malloc_task_rust() {
+#[no_mangle]
+pub extern "C" fn malloc_task() {
     let allocator: &HeapAllocator = unsafe { &HEAP_ALLOCATOR };
     allocator.init();
 
@@ -164,7 +153,7 @@ impl HeapAllocator {
     }
 
     fn init(&self) {
-        let heap_start: usize = local_address_of!("__heap_start");
+        let heap_start: u32 = local_address_of!("__heap_start");
         let brk = ((heap_start | 4) + 4) as *mut u32;
         unsafe { *brk.sub(1) = 0 };
         self.brk.set(brk);

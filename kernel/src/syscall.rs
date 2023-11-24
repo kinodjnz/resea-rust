@@ -54,16 +54,16 @@ fn handle_notify(dst_tid: u32, notifications: Notifications) -> KResult<()> {
         .and_then(|task| ipc::notify(task_pool, task, notifications))
 }
 
-fn handle_create_task(tid: u32, pc: usize) -> KResult<()> {
+fn handle_create_task(tid: u32, pc: u32, sp: u32) -> KResult<()> {
     let task_pool = task::get_task_pool();
-    return task_pool.create_user_task(tid, pc);
+    return task_pool.create_user_task(tid, pc, sp);
 }
 
 #[no_mangle]
 pub extern "C" fn handle_syscall(
     a0: u32,
     a1: u32,
-    _a2: u32,
+    a2: u32,
     _a3: u32,
     _a4: u32,
     _a5: u32,
@@ -93,7 +93,7 @@ pub extern "C" fn handle_syscall(
             IpcFlags::noblock(),
         ),
         i if i == Syscall::Notify.as_u32() => handle_notify(a0, Notifications::from_u32(a1)),
-        i if i == Syscall::CreateTask.as_u32() => handle_create_task(a0, a1 as usize),
+        i if i == Syscall::CreateTask.as_u32() => handle_create_task(a0, a1, a2),
         _ => KResult::InvalidArg,
     };
     match r {

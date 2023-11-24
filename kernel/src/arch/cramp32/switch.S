@@ -48,11 +48,3 @@ cramp32_switch_idle_task:
         lw      ra, 60(sp)
         addi    sp, sp, 64
         ret
-
-.global cramp32_start_task
-cramp32_start_task:
-        //call    stack_set_canary
-
-        sw      sp, 0(tp)
-
-        mret

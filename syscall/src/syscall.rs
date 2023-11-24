@@ -30,6 +30,6 @@ pub fn ipc_send_noblock(dst_tid: u32, message: &Message) -> KResult<()> {
     arch::syscall::ipc_send_noblock(dst_tid, message)
 }
 
-pub fn create_task(tid: u32, pc: usize) -> KResult<()> {
-    arch::syscall::create_task(tid, pc)
+pub fn create_task(tid: u32, pc: u32, sp: u32) -> KResult<()> {
+    arch::syscall::create_task(tid, pc, sp)
 }

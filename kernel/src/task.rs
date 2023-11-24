@@ -86,25 +86,25 @@ impl TaskPool {
         list::LinkedList::new(unsafe { self.runqueues.get_unchecked(priority as usize) })
     }
 
-    fn initiate_task(tid: u32, task: TaskRef, pc: usize) -> KResult<()> {
+    fn initiate_task(tid: u32, task: TaskRef, pc: u32, sp: u32) -> KResult<()> {
         if task.noarch().state.get() != TaskState::Unused {
             return KResult::AlreadyExists;
         }
-        Task::init(tid, task, pc)?;
+        Task::init(tid, task, pc, sp)?;
         KResult::Ok(())
     }
 
-    pub fn create_user_task(&self, tid: u32, pc: usize) -> KResult<()> {
+    pub fn create_user_task(&self, tid: u32, pc: u32, sp: u32) -> KResult<()> {
         if tid > config::NUM_TASKS {
             return KResult::InvalidArg;
         }
-        Self::initiate_task(tid, self.tasks.task(tid), pc)
+        Self::initiate_task(tid, self.tasks.task(tid), pc, sp)
             .map(|_| self.resume_task(self.tasks.task(tid)))
     }
 
     pub fn create_idle_task(&self) -> KResult<()> {
         let idle_task_entry_point = Task::arch_idle_task_entry_point();
-        Self::initiate_task(0, self.tasks.task(0), idle_task_entry_point).map(|_| {
+        Self::initiate_task(0, self.tasks.task(0), idle_task_entry_point, 0).map(|_| {
             let task = self.tasks.task(0);
             task.noarch().task_type.set(TaskType::Idle);
             Task::init_current(task);
@@ -275,8 +275,8 @@ impl NotificationMessage for Message {
 }
 
 pub trait KArchTask {
-    fn arch_task_init(tid: u32, task: TaskRef, pc: usize) -> KResult<()>;
-    fn arch_idle_task_entry_point() -> usize;
+    fn arch_task_init(tid: u32, task: TaskRef, pc: u32, sp: u32) -> KResult<()>;
+    fn arch_idle_task_entry_point() -> u32;
     fn arch_task_switch(prev: &Task, next: &Task);
     fn arch_switch_idle_task();
     fn init_current(task: TaskRef);
@@ -288,7 +288,7 @@ pub trait GetNoarchTask {
 }
 
 pub trait TaskOps {
-    fn init(tid: u32, task: TaskRef, pc: usize) -> KResult<()>;
+    fn init(tid: u32, task: TaskRef, pc: u32, sp: u32) -> KResult<()>;
     fn tid(&self) -> u32;
     fn priority(&self) -> u32;
     fn quantum(&self) -> i32;
@@ -300,7 +300,7 @@ pub trait TaskOps {
 }
 
 impl TaskOps for Task {
-    fn init(tid: u32, task: TaskRef, pc: usize) -> KResult<()> {
+    fn init(tid: u32, task: TaskRef, pc: u32, sp: u32) -> KResult<()> {
         task.noarch().tid.set(tid);
         task.noarch().task_type.set(TaskType::User);
         task.noarch().state.set(TaskState::Blocked);
@@ -313,7 +313,7 @@ impl TaskOps for Task {
         task.noarch().senders.reset();
         task.noarch().runqueue_link.reset();
         task.noarch().sender_link.reset();
-        Task::arch_task_init(tid, task, pc)
+        Task::arch_task_init(tid, task, pc, sp)
     }
 
     fn tid(&self) -> u32 {

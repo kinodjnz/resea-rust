@@ -29,6 +29,6 @@ pub fn ipc_send_noblock(_dst_tid: u32, _message: &Message) -> KResult<()> {
     unimplemented!();
 }
 
-pub fn create_task(_tid: u32, _pc: usize) -> KResult<()> {
+pub fn create_task(_tid: u32, _pc: u32, _sp: u32) -> KResult<()> {
     unimplemented!();
 }

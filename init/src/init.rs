@@ -1,8 +1,6 @@
 use ::syscall::print_error;
 use alloc::alloc;
 use core::alloc::{GlobalAlloc, Layout};
-use core::arch::global_asm;
-use core::cell::Cell;
 use core::ptr;
 use core::slice;
 use ipc::malloc::{AllocMessage, DeallocMessage};
@@ -12,36 +10,6 @@ use klib::ipc::{Message, MessageType};
 use klib::local_address_of;
 use klib::result::KResult;
 use syscall::syscall;
-
-global_asm!(r#"
-    .section .text.init
-    .global init_task
-init_task:
-    auipc a0, %pcrel_hi(__init_task_stack_end)
-    addi  sp, a0, %pcrel_lo(init_task)
-    jump  {0}, t0
-"#, sym init_task_rust);
-
-global_asm!(r#"
-    .section .text.init
-    .global console_task
-console_task:
-    auipc a0, %pcrel_hi({0})
-    lw    sp, %pcrel_lo(console_task)(a0)
-    jump  {1}, t0
-"#, sym CONSOLE_TASK_STACK, sym crate::generator::console_task);
-
-global_asm!(r#"
-    .section .text.init
-    .global print1_task
-print1_task:
-    auipc a0, %pcrel_hi({0})
-    lw    sp, %pcrel_lo(print1_task)(a0)
-    jump  {1}, t0
-"#, sym PRINT1_TASK_STACK, sym print1_task_rust);
-
-static mut CONSOLE_TASK_STACK: Cell<*mut u8> = Cell::new(ptr::null_mut());
-static mut PRINT1_TASK_STACK: Cell<*mut u8> = Cell::new(ptr::null_mut());
 
 struct HeapAllocator;
 
@@ -74,25 +42,36 @@ unsafe impl GlobalAlloc for HeapAllocator {
 #[global_allocator]
 static ALLOCATOR: HeapAllocator = HeapAllocator {};
 
-pub fn init_task_rust() {
+#[no_mangle]
+pub extern "C" fn init_task() {
     cycle::init();
     syscall::console_write(b"init task started\n");
-    let r = syscall::create_task(tid::MALLOC_TASK_TID, local_address_of!("malloc_task"));
+    let r = syscall::create_task(
+        tid::MALLOC_TASK_TID,
+        local_address_of!("malloc_task"),
+        local_address_of!("__malloc_task_stack_end"),
+    );
     if r.is_err() {
         syscall::console_write(b"create malloc task failed\n");
     }
-    unsafe {
-        CONSOLE_TASK_STACK.set(alloc::alloc(Layout::from_size_align_unchecked(4096, 4)).add(4096))
-    };
-    let r = syscall::create_task(tid::CONSOLE_TASK_TID, local_address_of!("console_task"));
+    let console_task_sp =
+        unsafe { alloc::alloc(Layout::from_size_align_unchecked(4096, 4)).add(4096) as u32 };
+    let r = syscall::create_task(
+        tid::CONSOLE_TASK_TID,
+        local_address_of!("console_task"),
+        console_task_sp,
+    );
     if r.is_err() {
         syscall::console_write(b"create console task failed\n");
     }
     let next_user_task = tid::USER_TASK_START_TID;
-    unsafe {
-        PRINT1_TASK_STACK.set(alloc::alloc(Layout::from_size_align_unchecked(4096, 4)).add(4096))
-    };
-    let r = syscall::create_task(next_user_task, local_address_of!("print1_task"));
+    let print1_task_sp =
+        unsafe { alloc::alloc(Layout::from_size_align_unchecked(4096, 4)).add(4096) as u32 };
+    let r = syscall::create_task(
+        next_user_task,
+        local_address_of!("print1_task"),
+        print1_task_sp,
+    );
     if r.is_err() {
         syscall::console_write(b"create print1 task failed\n");
     }
@@ -136,19 +115,20 @@ pub struct AlignedVarArray<'a> {
     pub data: &'a [u8],
 }
 
-pub fn console_task_rust() {
-    syscall::console_write(b"console task started\n");
-    loop {
-        match syscall::ipc_recv(0) {
-            KResult::Ok(message) => {
-                syscall::console_write(ConsoleMessage::text_of(&message));
-            }
-            err => print_error!(b"ipc_recv failed: {}\n", err.err_as_u32()),
-        };
-    }
-}
+// pub fn console_task_rust() {
+//     syscall::console_write(b"console task started\n");
+//     loop {
+//         match syscall::ipc_recv(0) {
+//             KResult::Ok(message) => {
+//                 syscall::console_write(ConsoleMessage::text_of(&message));
+//             }
+//             err => print_error!(b"ipc_recv failed: {}\n", err.err_as_u32()),
+//         };
+//     }
+// }
 
-pub fn print1_task_rust() {
+#[no_mangle]
+pub extern "C" fn print1_task() {
     syscall::console_write(b"print1 task started\n");
     loop {
         let message = ConsoleMessage::new(b"Hello, Resea\n");

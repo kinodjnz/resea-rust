@@ -61,6 +61,9 @@ intr_handler:
         lw      a2, 56(sp)
         lw      ra, 60(sp)
         addi    sp, sp, 64
+
+.global cramp32_start_task
+cramp32_start_task:
         sw      sp, 0(tp)
         lw      sp, 4(tp)
         lw      tp, 8(tp)
