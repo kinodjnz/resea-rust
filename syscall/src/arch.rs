@@ -1,11 +1,15 @@
-#[cfg(target_arch = "riscv32")]
-pub mod riscv32;
+#[cfg(all(target_arch = "riscv32", feature = "cramp32"))]
+pub mod cramp32 {
+    pub mod syscall;
+}
 
-#[cfg(target_arch = "riscv32")]
-pub use riscv32::syscall;
+#[cfg(all(target_arch = "riscv32", feature = "cramp32"))]
+pub use cramp32::syscall;
 
-#[cfg(not(target_arch = "riscv32"))]
-pub mod unsupported;
+#[cfg(not(all(target_arch = "riscv32", feature = "cramp32")))]
+pub mod unsupported {
+    pub mod syscall;
+}
 
-#[cfg(not(target_arch = "riscv32"))]
+#[cfg(not(all(target_arch = "riscv32", feature = "cramp32")))]
 pub use unsupported::syscall;

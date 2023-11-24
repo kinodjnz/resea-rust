@@ -2,8 +2,7 @@
 #![feature(core_intrinsics)]
 #![no_builtins]
 
-pub mod memcpy;
-pub mod memset;
+mod arch;
 
 #[cfg(not(test))]
 use core::panic::PanicInfo;
