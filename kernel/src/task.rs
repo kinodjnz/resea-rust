@@ -108,12 +108,11 @@ impl TaskPool {
         Self::initiate_task(0, self.tasks.task(0), idle_task_entry_point, 0).map(|_| {
             let task = self.tasks.task(0);
             task.noarch().task_type.set(TaskType::Idle);
-            Task::init_current(task);
         })
     }
 
-    pub fn switch_idle_task() {
-        Task::arch_switch_idle_task();
+    pub fn switch_idle_task(&self) {
+        Task::arch_switch_idle_task(self.tasks.task(0));
     }
 
     fn enqueue_task(&self, task: TaskRef) {

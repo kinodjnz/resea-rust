@@ -71,22 +71,13 @@ impl ArchTask for Task {
         }
     }
 
-    fn arch_switch_idle_task() {
+    fn arch_switch_idle_task(idle_task: &Task) {
         extern "C" {
             #[allow(improper_ctypes)]
             fn cramp32_switch_idle_task(dummy: u32, next_sp: u32, next_task: *const Task);
         }
-        let idle_task = Self::current();
         unsafe {
             cramp32_switch_idle_task(0, idle_task.stack.get(), idle_task);
-        }
-    }
-
-    fn init_current(task: &Task) {
-        unsafe {
-            let task_ptr: u32 = mem::transmute(<*const Task>::from(task));
-            asm!("csrw mscratch, {0}", in(reg) task_ptr);
-            asm!("mv   tp, {0}", in(reg) task_ptr);
         }
     }
 

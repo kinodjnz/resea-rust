@@ -1,5 +1,5 @@
 use crate::printk;
-use crate::task::{self, TaskPool};
+use crate::task;
 use klib::local_address_of;
 
 pub fn kmain() {
@@ -17,5 +17,5 @@ pub fn kmain() {
     if task::get_task_pool().create_idle_task().is_err() {
         printk!(b"create idle task failed\n");
     }
-    TaskPool::switch_idle_task();
+    task::get_task_pool().switch_idle_task();
 }
