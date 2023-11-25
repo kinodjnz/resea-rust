@@ -1,4 +1,4 @@
-use crate::arch::KArchIrq;
+use crate::arch::irq::ArchIrq;
 use klib::mmio;
 
 const REG_INTERRUPT_ENABLE: *mut u32 = 0x3000_4000 as *mut u32;
@@ -10,7 +10,7 @@ pub fn init() {
 
 pub struct Irq;
 
-impl KArchIrq for Irq {
+impl ArchIrq for Irq {
     fn enable_irq(irq: u32) {
         mmio::writev(
             REG_INTERRUPT_ENABLE,

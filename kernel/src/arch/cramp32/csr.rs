@@ -1,7 +1,8 @@
+use super::interrupt;
 use super::irq;
 use klib::local_address_of;
 
-#[allow(unused_macros)]
+#[macro_export]
 macro_rules! cramp32_csrsi {
     ($reg: expr, $imm: expr $(,)?) => {
         if $imm < 32 {
@@ -16,7 +17,7 @@ macro_rules! cramp32_csrsi {
     }
 }
 
-#[allow(unused_macros)]
+#[macro_export]
 macro_rules! cramp32_csrs {
     ($reg: expr, $val: expr $(,)?) => {
         unsafe {
@@ -25,7 +26,31 @@ macro_rules! cramp32_csrs {
     }
 }
 
-#[allow(unused_macros)]
+#[macro_export]
+macro_rules! cramp32_csrci {
+    ($reg: expr, $imm: expr $(,)?) => {
+        if $imm < 32 {
+            unsafe {
+                core::arch::asm!(concat!("csrci ", $reg, ", ", $imm));
+            }
+        } else {
+            unsafe {
+                core::arch::asm!(concat!("csrc ", $reg, ", {0}"), in(reg) $imm);
+            }
+        }
+    }
+}
+
+#[macro_export]
+macro_rules! cramp32_csrc {
+    ($reg: expr, $val: expr $(,)?) => {
+        unsafe {
+            core::arch::asm!(concat!("csrc ", $reg, ", {0}"), in(reg) $val);
+        }
+    }
+}
+
+#[macro_export]
 macro_rules! cramp32_csrw {
     ($reg: expr, $val: expr $(,)?) => {
         unsafe {
@@ -34,18 +59,10 @@ macro_rules! cramp32_csrw {
     }
 }
 
-fn enable_interrupt() {
-    cramp32_csrsi!("mstatus", 0x80);
-}
-
-fn enable_machine_external_and_timer_interrupt() {
-    cramp32_csrsi!("mie", 0x880);
-}
-
 pub fn init_csr() {
     let intr_handler_ptr = local_address_of!("intr_handler");
     cramp32_csrw!("mtvec", intr_handler_ptr);
     irq::init();
-    enable_interrupt();
-    enable_machine_external_and_timer_interrupt();
+    interrupt::init_interrupt();
+    interrupt::enable_machine_external_and_timer_interrupt();
 }

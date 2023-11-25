@@ -1,20 +1,22 @@
-use super::timer;
-use crate::{kpanic, task};
+use crate::arch::interrupt::ArchInterrupt;
+use crate::{cramp32_csrci, cramp32_csrsi};
 
-#[no_mangle]
-pub extern "C" fn cramp32_handle_exception() {
-    kpanic!(b"Unexpected exception\n");
+pub fn init_interrupt() {
+    cramp32_csrsi!("mstatus", 0x80);
 }
 
-#[no_mangle]
-pub extern "C" fn cramp32_handle_interrupt(_a0: u32, _a1: u32, mcause: u32) {
-    match mcause {
-        0x80000007 => {
-            timer::reload();
-            task::handle_timer_irq();
-        }
-        _ => {
-            kpanic!(b"unimplemented!\n");
-        }
+pub fn enable_machine_external_and_timer_interrupt() {
+    cramp32_csrsi!("mie", 0x880);
+}
+
+pub struct Interrupt;
+
+impl ArchInterrupt for Interrupt {
+    fn enable_interrupt() {
+        cramp32_csrsi!("mstatus", 8);
+    }
+
+    fn disable_interrupt() {
+        cramp32_csrci!("mstatus", 8);
     }
 }

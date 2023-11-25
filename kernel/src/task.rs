@@ -1,4 +1,5 @@
-pub use crate::arch::Task;
+use crate::arch::task::ArchTask;
+pub use crate::arch::task::Task;
 use crate::config;
 use crate::ipc;
 use core::cell::Cell;
@@ -272,15 +273,6 @@ impl NotificationMessage for Message {
         self.raw.fill(0);
         self.set_payload(&notifications);
     }
-}
-
-pub trait KArchTask {
-    fn arch_task_init(tid: u32, task: TaskRef, pc: u32, sp: u32) -> KResult<()>;
-    fn arch_idle_task_entry_point() -> u32;
-    fn arch_task_switch(prev: &Task, next: &Task);
-    fn arch_switch_idle_task();
-    fn init_current(task: TaskRef);
-    fn current() -> TaskRef;
 }
 
 pub trait GetNoarchTask {

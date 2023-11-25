@@ -39,7 +39,7 @@ intr_handler:
 1:
         sw      a0, 4(sp)
         sw      a1, 0(sp)
-        mv      a2, t0
+        mv      a0, t0
         call    cramp32_handle_interrupt
 4:
         lw      a1, 0(sp)

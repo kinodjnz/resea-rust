@@ -10,6 +10,7 @@ macro_rules! printk {
 macro_rules! kpanic {
     ($fmt:expr $(,$args:expr)*) => {
         use klib::fmt::FormattedWriter;
+        $crate::arch::interrupt::disable_interrupt();
         klib::make_args!($($args),*).format(&mut $crate::console::ConsoleWriter, $fmt);
         loop {}
     }

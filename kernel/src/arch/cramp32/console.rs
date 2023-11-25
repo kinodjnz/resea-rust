@@ -1,9 +1,9 @@
 use super::uart;
-use crate::arch::KArchConsole;
+use crate::arch::console::ArchConsole;
 
 pub struct Console;
 
-impl KArchConsole for Console {
+impl ArchConsole for Console {
     fn print_char(ch: u8) {
         uart::tx(ch)
     }
