@@ -1,7 +1,6 @@
-use super::irq;
+use super::csr;
 use super::timer;
 use crate::boot::kmain;
-use crate::{cramp32_csrsi, cramp32_csrw};
 use klib::{local_address_of, mmio};
 
 fn init_bss() {
@@ -10,26 +9,10 @@ fn init_bss() {
     mmio::mzero_align4(bss_start as *mut u32, bss_end as *const u32);
 }
 
-fn enable_interrupt() {
-    cramp32_csrsi!("mstatus", 0x80);
-}
-
-fn enable_machine_external_and_timer_interrupt() {
-    cramp32_csrsi!("mie", 0x880);
-}
-
-fn init_csr() {
-    let intr_handler_ptr = local_address_of!("intr_handler");
-    cramp32_csrw!("mtvec", intr_handler_ptr);
-    irq::init();
-    enable_interrupt();
-    enable_machine_external_and_timer_interrupt();
-}
-
 #[no_mangle]
 pub extern "C" fn cramp32_init() {
     init_bss();
-    init_csr();
+    csr::init_csr();
     timer::init();
     kmain();
 }

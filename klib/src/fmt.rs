@@ -95,3 +95,21 @@ impl Display for usize {
         }
     }
 }
+
+#[macro_export]
+macro_rules! make_args {
+    ($arg1:expr $(,$args:expr)*) => {
+        $crate::fmt::HCons { head: $arg1, tail: $crate::make_args!($($args),*) }
+    };
+    () => {
+        $crate::fmt::HNil
+    };
+}
+
+#[macro_export]
+macro_rules! buf_fmt {
+    ($buf:expr, $fmt:expr $(,$args:expr)*) => {
+        use $crate::fmt::FormattedWriter;
+        $crate::make_args!($($args),*).format($buf, $fmt)
+    }
+}

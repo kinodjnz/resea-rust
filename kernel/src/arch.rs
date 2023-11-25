@@ -1,13 +1,13 @@
 #[cfg(all(target_arch = "riscv32", feature = "cramp32"))]
-pub mod cramp32 {
+mod cramp32 {
     pub mod console;
-    pub mod init;
-    pub mod interrupt;
+    mod csr;
+    mod init;
+    mod interrupt;
     pub mod irq;
-    mod macros;
     pub mod task;
-    pub mod timer;
-    pub mod uart;
+    mod timer;
+    mod uart;
 }
 
 pub trait KArchConsole {

@@ -5,7 +5,6 @@
 #![feature(cell_update)]
 
 extern crate klib;
-mod macros;
 
 //mod gpio;
 //mod loader;
@@ -14,6 +13,7 @@ mod arch;
 mod boot;
 mod config;
 mod console;
+mod diag;
 mod ipc;
 mod syscall;
 mod task;
