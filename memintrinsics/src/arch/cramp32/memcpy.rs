@@ -1,7 +1,7 @@
 use core::intrinsics::likely;
 
 #[no_mangle]
-pub unsafe fn memcpy(dest: *mut u8, src: *const u8, n: usize) -> *mut u8 {
+pub unsafe extern "C" fn memcpy(dest: *mut u8, src: *const u8, n: usize) -> *mut u8 {
     copy_forward(dest, src, n).0
 }
 

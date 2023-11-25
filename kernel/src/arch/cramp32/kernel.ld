@@ -61,7 +61,7 @@ SECTIONS
         __malloc_task_stack_end = .;
         __heap_start = .;
         __boot_stack_start = .;
-        . += 0x10000;
+        . += 0x1000;
         . = ALIGN(0x1000);
         __boot_stack_end = .;
         __kernel_image_end = .;

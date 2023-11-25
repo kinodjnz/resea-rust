@@ -46,6 +46,7 @@ test:
 
 target/CACHEDIR.TAG target/$(TARGET)/release/libmemintrinsics.a target/$(TARGET)/release/libmalloc.a target/$(TARGET)/release/lib$(NAME).a target/$(TARGET)/release/lib$(INIT).a: $(KERNEL_SRCS)
 	$(CARGO) build --features cramp32 --release
+#	$(CARGO) build -Z build-std=std,panic_abort -Z build-std-features=panic_immediate_abort --features cramp32 --release
 #	$(CARGO) build --features $(ARCH) --release
 #	RUSTFLAGS='--emit=llvm-ir' $(CARGO) build --features $(ARCH) --release
 
