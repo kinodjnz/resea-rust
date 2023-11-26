@@ -38,20 +38,6 @@ pub const fn size_of_aligned4<T>() -> usize {
 }
 
 #[macro_export]
-macro_rules! local_address_of {
-    ($symbol: expr) => {
-        {
-            let mut temp_addr: u32;
-            #[allow(unused_unsafe)]
-            unsafe {
-                core::arch::asm!(concat!("lla {0}, ", $symbol), out(reg) temp_addr);
-            }
-            temp_addr
-        }
-    }
-}
-
-#[macro_export]
 macro_rules! zeroed_array {
     ($elem: ty, $size: expr) => {
         unsafe {

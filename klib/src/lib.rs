@@ -3,6 +3,7 @@
 #![feature(maybe_uninit_slice)]
 #![feature(ptr_sub_ptr)]
 
+pub mod arch;
 pub mod buf_writer;
 #[cfg(target_arch = "riscv32")]
 pub mod cycle;
