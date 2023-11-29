@@ -59,6 +59,8 @@ SECTIONS
         __malloc_task_stack_start = .;
         . += 0x1000;
         __malloc_task_stack_end = .;
+        . += 4;
+        . = ALIGN(8);
         __heap_start = .;
         __boot_stack_start = .;
         . += 0x1000;

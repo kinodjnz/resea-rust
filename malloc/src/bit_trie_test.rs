@@ -1,8 +1,8 @@
 use crate::bit_trie::*;
+use alloc::string::String;
 use core::cell::Cell;
 use core::mem;
 use klib::list;
-use alloc::string::String;
 
 #[derive(Debug, Eq, PartialEq)]
 struct Chunk<'s> {
@@ -109,8 +109,14 @@ fn bit_trie_unlink_eq_or_above() {
     trie.insert(&chunk_a);
     trie.insert(&chunk_b);
     assert_eq!(address_of(trie.unlink_eq_or_above(4)), None);
-    assert_eq!(address_of(trie.unlink_eq_or_above(3)), address_of(Some(&chunk_b)));
-    assert_eq!(address_of(trie.unlink_eq_or_above(2)), address_of(Some(&chunk_a)));
+    assert_eq!(
+        address_of(trie.unlink_eq_or_above(3)),
+        address_of(Some(&chunk_b))
+    );
+    assert_eq!(
+        address_of(trie.unlink_eq_or_above(2)),
+        address_of(Some(&chunk_a))
+    );
     assert_eq!(trie.unlink_lowest(), None);
 }
 
@@ -128,12 +134,27 @@ fn bit_trie_unlink_eq_or_above_2() {
     trie.insert(&chunk_c);
     trie.insert(&chunk_d);
     trie.insert(&chunk_e);
-    assert_eq!(address_of(trie.unlink_eq_or_above(3)), address_of(Some(&chunk_d)));
-    assert_eq!(address_of(trie.unlink_eq_or_above(3)), address_of(Some(&chunk_a)));
-    assert_eq!(address_of(trie.unlink_eq_or_above(3)), address_of(Some(&chunk_b)));
+    assert_eq!(
+        address_of(trie.unlink_eq_or_above(3)),
+        address_of(Some(&chunk_d))
+    );
+    assert_eq!(
+        address_of(trie.unlink_eq_or_above(3)),
+        address_of(Some(&chunk_a))
+    );
+    assert_eq!(
+        address_of(trie.unlink_eq_or_above(3)),
+        address_of(Some(&chunk_b))
+    );
     assert_eq!(trie.unlink_eq_or_above(3), None);
-    assert_eq!(address_of(trie.unlink_eq_or_above(1)), address_of(Some(&chunk_e)));
-    assert_eq!(address_of(trie.unlink_eq_or_above(1)), address_of(Some(&chunk_c)));
+    assert_eq!(
+        address_of(trie.unlink_eq_or_above(1)),
+        address_of(Some(&chunk_e))
+    );
+    assert_eq!(
+        address_of(trie.unlink_eq_or_above(1)),
+        address_of(Some(&chunk_c))
+    );
     assert_eq!(trie.unlink_eq_or_above(1), None);
 }
 

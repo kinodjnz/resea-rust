@@ -39,7 +39,7 @@ pub const fn size_of_aligned4<T>() -> usize {
 
 #[macro_export]
 macro_rules! zeroed_array {
-    ($elem: ty, $size: expr) => {
+    ($elem: ty, $size: expr $(,)?) => {
         unsafe {
             mem::transmute::<[u32; mem::size_of::<$elem>() * $size / 4], [$elem; $size]>(
                 [0; mem::size_of::<$elem>() * $size / 4],

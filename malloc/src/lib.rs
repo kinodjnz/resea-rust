@@ -7,7 +7,9 @@
 #![feature(coroutines, coroutine_trait)]
 #![feature(offset_of)]
 
+#[cfg(test)]
 extern crate alloc;
+
 extern crate klib;
 extern crate syscall;
 

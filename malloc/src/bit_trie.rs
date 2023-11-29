@@ -105,7 +105,6 @@ pub trait BitTrieLinkAdapter<'s, const NCPL: usize>: list::SingleLinkAdapter<'s,
 }
 
 // const BIT_TRIE_LINK_OFFSET: usize = 4; /*mem::offset_of!(T, list_link)*/
-
 impl<'s, const NCPL: usize, T: 's> BitTrieRoot<'s, NCPL, T>
 where
     T: BitTrieLinkAdapter<'s, NCPL>,
@@ -175,12 +174,15 @@ where
             ptr_index = (0..NCPL)
                 .find_map(|i| unsafe { cur.children.get_unchecked(i).get() }.map(|link| (link, i)));
         }
-        nearest_above.map(|link| {
-            T::from_bit_trie_link(self.unlink_chunk(link, nearest_above_parents_index))
-        })
+        nearest_above
+            .map(|link| T::from_bit_trie_link(self.unlink_chunk(link, nearest_above_parents_index)))
     }
 
-    fn unlink_chunk(&self, link: &'s BitTrieLink<'s, NCPL, T>, parents_index: usize) -> &'s BitTrieLink<'s, NCPL, T> {
+    fn unlink_chunk(
+        &self,
+        link: &'s BitTrieLink<'s, NCPL, T>,
+        parents_index: usize,
+    ) -> &'s BitTrieLink<'s, NCPL, T> {
         if let Some(next) = self.list_for_data(link).pop_front() {
             // self.replace_chunk(link, parents_index, next.bit_trie_link(), 0);
             next.bit_trie_link()
@@ -271,7 +273,12 @@ where
     #[cfg(test)]
     pub fn write(&self, s: &mut alloc::string::String) {
         use core::fmt::Write;
-        writeln!(s, "root = {:#012x}", self.root.get().map(|x| x as *const _ as usize).unwrap_or(0)).unwrap();
+        writeln!(
+            s,
+            "root = {:#012x}",
+            self.root.get().map(|x| x as *const _ as usize).unwrap_or(0)
+        )
+        .unwrap();
         writeln!(s, "max_data_bits = {}", self.max_data_bits).unwrap();
         if let Some(p) = self.root.get() {
             self.write_link(s, p, 1);
@@ -279,18 +286,53 @@ where
     }
 
     #[cfg(test)]
-    fn write_link(&self, s: &mut alloc::string::String, cur: &BitTrieLink<'s, NCPL, T>, level: u32) {
+    fn write_link(
+        &self,
+        s: &mut alloc::string::String,
+        cur: &BitTrieLink<'s, NCPL, T>,
+        level: u32,
+    ) {
         use core::fmt::Write;
         writeln!(s, "").unwrap();
         let data = T::from_bit_trie_link(cur).data();
-        writeln!(s, "{:#012x} data={} level={}", cur as *const _ as usize, data, level).unwrap();
-        writeln!(s, "parent = {:#012x}", cur.parent.get().map(|x| x as *const _ as usize).unwrap_or(0)).unwrap();
-        writeln!(s, "chain = {:#012x}", cur.chain.next().map(|x| x as *const _ as usize).unwrap_or(0)).unwrap();
+        writeln!(
+            s,
+            "{:#012x} data={} level={}",
+            cur as *const _ as usize, data, level
+        )
+        .unwrap();
+        writeln!(
+            s,
+            "parent = {:#012x}",
+            cur.parent
+                .get()
+                .map(|x| x as *const _ as usize)
+                .unwrap_or(0)
+        )
+        .unwrap();
+        writeln!(
+            s,
+            "chain = {:#012x}",
+            cur.chain
+                .next()
+                .map(|x| x as *const _ as usize)
+                .unwrap_or(0)
+        )
+        .unwrap();
         if let Some(chain) = cur.chain.next() {
             self.write_chain(s, chain, 1);
         }
         for i in 0..NCPL {
-            writeln!(s, "childlen[{}] = {:#012x}", i, cur.children[i].get().map(|x| x as *const _ as usize).unwrap_or(0)).unwrap();
+            writeln!(
+                s,
+                "childlen[{}] = {:#012x}",
+                i,
+                cur.children[i]
+                    .get()
+                    .map(|x| x as *const _ as usize)
+                    .unwrap_or(0)
+            )
+            .unwrap();
         }
         if level < 4 {
             for i in 0..NCPL {
@@ -302,9 +344,20 @@ where
     }
 
     #[cfg(test)]
-    fn write_chain(&self, s: &mut alloc::string::String, chain: &list::SingleListLink<'s, T>, n: u32) {
+    fn write_chain(
+        &self,
+        s: &mut alloc::string::String,
+        chain: &list::SingleListLink<'s, T>,
+        n: u32,
+    ) {
         use core::fmt::Write;
-        writeln!(s, "chain = {:#012x} n={}", chain.next().map(|x| x as *const _ as usize).unwrap_or(0), n).unwrap();
+        writeln!(
+            s,
+            "chain = {:#012x} n={}",
+            chain.next().map(|x| x as *const _ as usize).unwrap_or(0),
+            n
+        )
+        .unwrap();
         if n < 4 {
             if let Some(p) = chain.next() {
                 self.write_chain(s, p, n + 1);
